@@ -135,6 +135,51 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .sync.saving::before{background:var(--accent)}
 .sync.error::before{background:var(--danger)}
 .card.wide{width:min(640px,100%);max-height:min(80vh,720px)}
+/* Home dashboard */
+body.home-on .doc-only, body.home-on #tools, body.home-on #hint, body.home-on main{display:none !important}
+#home{display:none;flex:1;overflow-y:auto;background:var(--chrome)}
+body.home-on #home{display:block}
+.hwrap{max-width:1180px;margin:0 auto;padding:22px 16px 60px;display:flex;flex-direction:column;gap:18px}
+.hhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hhead h1{font-size:22px;font-weight:600;margin:0;flex:1;min-width:160px}
+.hsearch{background:var(--chrome-2);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:220px;flex:0 1 300px}
+.cont{display:flex;align-items:center;gap:12px;background:var(--chrome-2);border:1px solid var(--accent);border-radius:10px;padding:10px 12px}
+.cont b{font-weight:600}
+.cont span{color:var(--muted);font-size:13px}
+.cont .grow{flex:1;min-width:0;display:flex;flex-direction:column}
+.cont .grow b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--chrome-2);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--muted)}
+.chip:hover{color:var(--text)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.chip .n{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:5px}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
+.dcard{position:relative;background:var(--chrome-2);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.dcard:hover{border-color:#56606c}
+.dcard.cur{border-color:var(--accent)}
+.dopen{background:none;border:0;padding:0;text-align:left;display:flex;flex-direction:column;cursor:pointer}
+.dthumb{aspect-ratio:8.5/9;background:#3a414a;display:grid;place-items:center;overflow:hidden;border-bottom:1px solid var(--line)}
+.dthumb img{width:100%;height:100%;object-fit:cover;object-position:top;background:#fff}
+.dthumb svg{width:44px;height:44px;fill:none;stroke:#7d8792;stroke-width:1.5}
+.dinfo{padding:9px 10px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.dname{font-weight:500;font-size:13.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.dmeta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dproj{align-self:flex-start;font-size:11px;background:#3a3220;color:var(--accent);border-radius:4px;padding:1px 6px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dacts{position:absolute;top:6px;right:6px;display:flex;gap:4px}
+.dacts button{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:rgba(31,35,40,.88);display:grid;place-items:center;padding:0;color:var(--muted)}
+.dacts button:hover{color:var(--text)}
+.dacts svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.dacts .pin[aria-pressed="true"]{color:var(--accent)}
+.dacts .pin[aria-pressed="true"] svg{fill:var(--accent)}
+.hempty{border:1.5px dashed var(--line);border-radius:12px;padding:34px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:12px;align-items:center}
+.hempty b{color:var(--text);font-size:16px;font-weight:600}
+.hempty .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;padding:0;font-size:13px}
+.hfoot{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.hfoot a{color:var(--muted)}
+.card label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.card label.chk{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.card .danger{color:var(--danger);margin-right:auto}
 .rlist{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:60px;margin:0;padding:0;list-style:none}
 .ritem{display:flex;align-items:center;gap:8px;background:var(--chrome);border:1px solid var(--line);border-radius:8px;padding:4px 4px 4px 0}
 .ritem.cur{border-color:var(--accent)}
@@ -162,26 +207,26 @@ main{flex:1;display:flex;min-height:0;position:relative}
 </head>
 <body>
 <header class="bar">
-  <div class="brand"><i></i>PDF Editor <span class="ver" title="Editor version">v1.4</span></div>
-  <span class="fname" id="fname">Sample.pdf</span>
-  <span class="sync" id="sync" title="Sample page. Open a PDF to start saving to your recents."><span class="st">Sample, not saved</span></span>
+  <button class="btn" id="homeBtn" title="Home: all your documents (Alt+H)"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span class="t">Home</span></button>
+  <div class="brand"><i></i>PDF Editor <span class="ver" title="Editor version">v1.5</span></div>
+  <span class="fname doc-only" id="fname"></span>
+  <span class="sync doc-only" id="sync" title="Sample page. Open a PDF to start saving to your recents."><span class="st">Sample, not saved</span></span>
   <span class="spacer"></span>
-  <button class="btn" id="pagesToggle" title="Show pages"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="7" height="9" rx="1"/><rect x="13" y="3" width="7" height="9" rx="1"/><rect x="4" y="14" width="7" height="7" rx="1"/></svg><span class="t">Pages</span></button>
+  <button class="btn doc-only" id="pagesToggle" title="Show pages"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="7" height="9" rx="1"/><rect x="13" y="3" width="7" height="9" rx="1"/><rect x="4" y="14" width="7" height="7" rx="1"/></svg><span class="t">Pages</span></button>
   <button class="btn" id="driveBtn" title="Connect Google Drive"><svg viewBox="0 0 24 24"><path d="M8.5 4h7l6 10.5-3.5 6h-12L2.5 14.5z"/><path d="M8.5 4l6 10.5H2.5M15.5 4l-6 10.5M21.5 14.5h-12l-3.5 6"/></svg><span class="t">Connect Drive</span></button>
-  <button class="btn" id="recentBtn" title="Your recent documents, on any device"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span class="t">Recent</span></button>
   <button class="btn" id="openBtn" title="Open a PDF (replaces the current one)"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span class="t">Open</span></button>
-  <button class="btn" id="mergeBtn" title="Add another PDF's pages to the end"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="t">Add PDF</span></button>
-  <div class="grp">
+  <button class="btn doc-only" id="mergeBtn" title="Add another PDF's pages to the end"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="t">Add PDF</span></button>
+  <div class="grp doc-only">
     <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 010 10h-3"/></svg></button>
     <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H9a5 5 0 000 10h3"/></svg></button>
   </div>
-  <div class="grp">
+  <div class="grp doc-only">
     <button class="btn" id="zoomOut" title="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
     <span class="zoomlbl" id="zoomLbl">100%</span>
     <button class="btn" id="zoomIn" title="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <button class="btn" id="zoomFit" title="Fit page width"><span>Fit</span></button>
   </div>
-  <button class="btn primary" id="saveBtn" title="Save PDF (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Save PDF</span></button>
+  <button class="btn primary doc-only" id="saveBtn" title="Save PDF (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Save PDF</span></button>
 </header>
 
 <nav class="tools" id="tools" aria-label="Tools">
@@ -241,6 +286,19 @@ main{flex:1;display:flex;min-height:0;position:relative}
 </nav>
 <div class="hint" id="hint">Select: click something you added to move it. Click it again to change the text.</div>
 
+<section id="home" aria-label="Home">
+  <div class="hwrap">
+    <div class="hhead">
+      <h1>Documents</h1>
+      <input class="hsearch" id="hSearch" type="search" placeholder="Search names and projects" aria-label="Search documents">
+      <button class="btn primary" id="hOpen"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>Open PDF</button>
+    </div>
+    <div id="hCont"></div>
+    <div class="chips" id="hChips" role="toolbar" aria-label="Filter by project"></div>
+    <div id="hBody"></div>
+    <div class="hfoot"><span id="hDrive"></span><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><button class="linkbtn" id="hSample">Open the sample page</button></div>
+  </div>
+</section>
 <main>
   <aside id="thumbs" aria-label="Pages"></aside>
   <section id="viewer"><div id="pages"></div></section>
@@ -276,17 +334,17 @@ main{flex:1;display:flex;min-height:0;position:relative}
   </div>
 </div>
 
-<div class="modal" id="recentModal" role="dialog" aria-modal="true" aria-labelledby="recentTitle">
-  <div class="card wide">
-    <h2 id="recentTitle">Recent documents</h2>
-    <p id="recentNote">Connect Google Drive to keep your documents in sync across devices.</p>
-    <ul class="rlist" id="rlist"></ul>
+<div class="modal" id="detailsModal" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+  <div class="card">
+    <h2 id="detailsTitle">Document details</h2>
+    <label class="f" for="dName">Name<input type="text" id="dName"></label>
+    <label class="f" for="dProject">Project<input type="text" id="dProject" list="projList" placeholder="For example: #954 Sugar Creek"></label>
+    <datalist id="projList"></datalist>
+    <label class="chk"><input type="checkbox" id="dPinned"> Pin to the top of Home</label>
     <div class="acts">
-      <span class="legal"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></span>
-      <span class="spacer"></span>
-      <button class="btn" id="recentClose">Close</button>
-      <button class="btn" id="recentConnect">Connect Google Drive</button>
-      <button class="btn primary" id="recentOpen">Open a PDF from this device</button>
+      <button class="btn danger" id="dRemove">Remove from Home</button>
+      <button class="btn" id="dCancel">Cancel</button>
+      <button class="btn primary" id="dSave">Save</button>
     </div>
   </div>
 </div>
@@ -321,7 +379,8 @@ let editing = null;     // {p, a, el, before, isNew}
 let pendingImage = null;
 let cloud = null;          // {db, assets, uid, col, profile}
 let rec = null;            // current recent: {id, createdAt}
-let recents = [], cloudSig = null, recentsShownOnce = false, userOpened = false;
+let recents = [], cloudSig = null, userOpened = false, homeFilter = lsGet("pdfEditor.filter")||"all", recentsLoaded = false;
+const srcCache = new Map();
 let syncing = false, syncAgain = false, syncTimer = null;
 const props = {color:"#000000", size:11, font:"Helvetica", bold:false, italic:false, width:2};
 const HL = "#ffe14d";
@@ -424,7 +483,7 @@ function showName(){
 async function loadBytes(bytes, name, append){
   const pdf = await parsePdf(bytes); if(!pdf) return false;
   finishEdit();
-  if(!append){ docs=[]; pages=[]; undoStack=[]; redoStack=[]; runsCache.clear(); sel=null; fileName=name||"document.pdf"; rec=null; }
+  if(!append){ document.body.classList.remove("home-on"); docs=[]; pages=[]; undoStack=[]; redoStack=[]; runsCache.clear(); wordsCache.clear(); sel=null; fileName=name||"document.pdf"; rec=null; }
   else snap();
   const di = await addSource(bytes, pdf, null);
   const proxies = docs[di].proxies;
@@ -444,8 +503,8 @@ async function openFile(file, append){
   if(!ok) return;
   docs[docs.length-1].name = file.name;
   userOpened = true;
-  $("#recentModal").classList.remove("on");
-  if(!append){ rec = {id:null, createdAt:Date.now(), exportId:null}; }
+  hideHome();
+  if(!append){ rec = {id:null, createdAt:Date.now(), exportId:null, project: (homeFilter!=="all" && homeFilter!=="pinned" && homeFilter!=="none") ? homeFilter : ""}; }
   await uploadSources();
   scheduleSync(0);
 }
@@ -1509,7 +1568,8 @@ window.addEventListener("keydown", e=>{
   if(mod && e.key.toLowerCase()==="g"){ e.preventDefault(); e.shiftKey ? ungroupSel() : groupSel(); return; }
   if(mod && e.key.toLowerCase()==="a" && tool==="select"){ const pid = sel ? sel.pid : (pages[0]&&pages[0].id); const p=findPage(pid); if(p&&p.annots.length){ e.preventDefault(); setSel(p, p.annots); } return; }
   if(e.key==="Delete"||e.key==="Backspace"){ if(sel){ e.preventDefault(); deleteSel(); } return; }
-  if(e.key==="Escape"){ $("#saveModal").classList.remove("on"); $("#recentModal").classList.remove("on"); $("#sigModal").classList.remove("on"); if(tool!=="select") setTool("select"); else clearSel(); return; }
+  if(e.key==="Escape"){ if($("#detailsModal").classList.contains("on")){ $("#detailsModal").classList.remove("on"); return; } if(document.body.classList.contains("home-on")){ if(pages.length) hideHome(); return; } $("#saveModal").classList.remove("on"); $("#sigModal").classList.remove("on"); if(tool!=="select") setTool("select"); else clearSel(); return; }
+  if(e.altKey && e.key.toLowerCase()==="h"){ e.preventDefault(); showHome(); return; }
   if(mod||e.altKey) return;
   const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",g:"hltext",b:"box",d:"draw",l:"lasso",x:"erase"};
   const t=keys[e.key.toLowerCase()]; if(t) setTool(t);
@@ -1529,7 +1589,7 @@ const configured = () => !/PASTE_YOUR_CLIENT_ID/.test(GOOGLE_CLIENT_ID);
 function connected(){ return !!gToken && Date.now()<gExp; }
 
 function setSync(state, text){
-  const el=$("#sync"); el.className="sync "+state;
+  const el=$("#sync"); el.className="sync doc-only "+state;
   const labels={saved:"Saved to Drive", saving:"Saving…", local:"Only on this device", error:"Not saved, retrying", sample:"Sample, not saved", auth:"Drive disconnected"};
   const t=text||labels[state]||"";
   el.querySelector(".st").textContent=t; el.title=t;
@@ -1631,10 +1691,11 @@ async function doSync(){
       sources:docs.map(d=>d.assetId), exportId:rec.exportId||null, nextId, pages:JSON.parse(serialize())};
     const meta = {name:fileName.replace(/\.pdf$/i,"")+" (edits).pdfedit", mimeType:"application/json",
       appProperties:{pdfEditor:"doc", docName:fileName.slice(0,90), pages:String(pages.length)}};
-    if(!rec.id) meta.parents=[fid];
+    if(!rec.id){ meta.parents=[fid]; if(rec.project) meta.appProperties.project = rec.project.slice(0,90); }
     const r = await driveUpload(meta, new Blob([JSON.stringify(body)],{type:"application/json"}), rec.id);
     rec.id = r.id; setSync("saved");
-    if($("#recentModal").classList.contains("on")) loadRecents();
+    saveThumb();
+    if(document.body.classList.contains("home-on")) loadRecents();
   }catch(e){
     if(e.code==="auth") authLost();
     else { setSync("error"); clearTimeout(syncTimer); syncTimer=setTimeout(doSync, 8000); }
@@ -1683,88 +1744,212 @@ function fmtWhen(ms){
   return d.toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"})+", "+time;
 }
 async function loadRecents(){
-  if(!connected()){ recents=[]; renderRecents(); return; }
+  if(!connected()){ recents=[]; recentsLoaded=true; renderHome(); return; }
   try{
-    const r = await (await gfetch(`${API}/files?q=${q("appProperties has { key='pdfEditor' and value='doc' } and trashed=false")}&orderBy=modifiedTime desc&pageSize=100&fields=files(id,modifiedTime,appProperties)`)).json();
-    recents = (r.files||[]).map(f=>({id:f.id, name:(f.appProperties&&f.appProperties.docName)||"Untitled.pdf", pageCount:+((f.appProperties&&f.appProperties.pages)||0), updatedAt:Date.parse(f.modifiedTime)}));
-  }catch(e){ if(e.code==="auth") authLost(); recents=[]; $("#recentNote").textContent="Couldn't load your recents from Drive. Try again."; }
-  renderRecents();
+    const r = await (await gfetch(`${API}/files?q=${q("appProperties has { key='pdfEditor' and value='doc' } and trashed=false")}&orderBy=modifiedTime desc&pageSize=200&fields=files(id,modifiedTime,appProperties)`)).json();
+    recents = (r.files||[]).map(f=>{ const ap=f.appProperties||{}; return {id:f.id, name:ap.docName||"Untitled.pdf", pageCount:+(ap.pages||0), updatedAt:Date.parse(f.modifiedTime), project:ap.project||"", pinned:ap.pinned==="1"}; });
+  }catch(e){ if(e.code==="auth") authLost(); toast("Couldn't load your documents from Drive. Try again."); }
+  recentsLoaded=true; renderHome();
 }
-function renderRecents(){
-  const ul=$("#rlist"); ul.innerHTML="";
-  const cbtn=$("#recentConnect");
-  if(!connected()){
-    $("#recentNote").textContent = configured() ? "Connect Google Drive to keep your documents in sync. Anything you open is saved to a \"PDF Editor\" folder in your Drive as you edit, and shows up here on every device." : "Google Drive isn't set up yet. Add your Client ID (see the README), then documents sync across devices.";
-    cbtn.style.display = configured() ? "" : "none";
-    cbtn.textContent = lsGet("pdfEditor.gwas") ? "Reconnect Google Drive" : "Connect Google Drive";
-    return;
+function thumbKey(id){ return "pdfEditor.thumb."+id; }
+function saveThumb(){
+  try{
+    if(!rec || !rec.id || !pages[0] || !pages[0]._canvas || !pages[0]._canvas.width) return;
+    const src = pages[0]._canvas, w = 240, h = Math.round(w*src.height/src.width);
+    const c = el("canvas"); c.width=w; c.height=h;
+    const x = c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,w,h); x.drawImage(src,0,0,w,h);
+    lsSet(thumbKey(rec.id), c.toDataURL("image/jpeg",0.72));
+  }catch(e){}
+}
+const PDF_ICON = '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 16h6M9 10h2"/></svg>';
+const STAR = '<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
+const DOTS = '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>';
+function projects(){ const m=new Map(); recents.forEach(r=>{ if(r.project) m.set(r.project,(m.get(r.project)||0)+1); }); return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0], undefined, {numeric:true})); }
+function renderHome(){
+  // continue banner
+  const cont = $("#hCont"); cont.innerHTML="";
+  if(pages.length){
+    const d=el("div","cont");
+    const g=el("div","grow"); const b=el("b"); b.textContent=fileName; const sp=el("span"); sp.textContent="Open now · "+pages.length+" page"+(pages.length>1?"s":"");
+    g.append(b,sp);
+    const btn=el("button","btn primary"); btn.textContent="Back to it"; btn.addEventListener("click", hideHome);
+    d.append(g,btn); cont.appendChild(d);
   }
-  cbtn.style.display="none";
-  $("#recentNote").textContent = "Saved in the \"PDF Editor\" folder of your Google Drive"+(gEmail?" ("+gEmail+")":"")+". Edits save as you work.";
-  if(!recents.length){ const li=el("li","rempty"); li.textContent="Nothing yet. Open a PDF and it shows up here."; ul.appendChild(li); return; }
-  recents.forEach(r=>{
-    const li=el("li","ritem"+(rec&&rec.id===r.id?" cur":""));
-    const b=el("button","ropen");
-    const n=el("b"); n.textContent=r.name;
-    const m=el("span"); m.textContent=`${fmtWhen(r.updatedAt||Date.now())} · ${r.pageCount||"?"} page${r.pageCount===1?"":"s"}${rec&&rec.id===r.id?" · open now":""}`;
-    b.append(n,m); b.addEventListener("click", ()=>openRecent(r));
-    const del=el("button","ib del"); del.innerHTML=ICON.del; del.title="Remove from recents"; del.setAttribute("aria-label","Remove "+r.name+" from recents");
-    del.addEventListener("click", ()=>{
-      const c=el("div","rconfirm"); c.append("Remove?");
-      const yes=el("button","btn"); yes.textContent="Remove"; yes.style.color="var(--danger)";
-      const no=el("button","btn"); no.textContent="Keep";
-      no.addEventListener("click", ()=>{ c.replaceWith(del); });
-      yes.addEventListener("click", ()=>removeRecent(r));
-      c.append(no,yes); del.replaceWith(c);
-    });
-    li.append(b,del); ul.appendChild(li);
+  // drive line
+  $("#hDrive").textContent = connected() ? `Synced with Google Drive${gEmail?" ("+gEmail+")":""}` : "";
+  const body = $("#hBody"); body.innerHTML="";
+  const chips = $("#hChips"); chips.innerHTML="";
+  if(!connected()){
+    const e=el("div","hempty");
+    e.innerHTML = configured() ? `<b>Connect Google Drive to see your documents</b><span>Everything you open is saved to a "PDF Editor" folder in your Drive as you edit, so you can pick it up on any device.</span>` : `<b>Google Drive isn't set up</b><span>You can still open and edit PDFs on this device.</span>`;
+    const acts=el("div","acts");
+    if(configured()){ const c=el("button","btn primary"); c.textContent = lsGet("pdfEditor.gwas") ? "Reconnect Google Drive" : "Connect Google Drive"; c.addEventListener("click", connectDrive); acts.appendChild(c); }
+    const o=el("button","btn"); o.textContent="Open a PDF from this device"; o.addEventListener("click", ()=>$("#fileOpen").click()); acts.appendChild(o);
+    e.appendChild(acts); body.appendChild(e); return;
+  }
+  if(!recentsLoaded){ const e=el("div","hempty"); e.innerHTML="<span>Loading your documents…</span>"; body.appendChild(e); return; }
+  // chips
+  const projs = projects(), nPinned = recents.filter(r=>r.pinned).length, nNone = recents.filter(r=>!r.project).length;
+  if(homeFilter!=="all" && homeFilter!=="pinned" && homeFilter!=="none" && !projs.some(([n])=>n===homeFilter)) homeFilter="all";
+  const chip=(id,label,n)=>{ const c=el("button","chip"); c.setAttribute("aria-pressed", String(homeFilter===id)); c.textContent=label; const s=el("span","n"); s.textContent=n; c.appendChild(s); c.addEventListener("click", ()=>{ homeFilter=id; lsSet("pdfEditor.filter",id); renderHome(); }); chips.appendChild(c); };
+  chip("all","All",recents.length);
+  if(nPinned) chip("pinned","Pinned",nPinned);
+  projs.forEach(([n,c])=>chip(n,n,c));
+  if(projs.length && nNone) chip("none","No project",nNone);
+  // list
+  const qy = ($("#hSearch").value||"").trim().toLowerCase();
+  let list = recents.filter(r=> homeFilter==="all" ? true : homeFilter==="pinned" ? r.pinned : homeFilter==="none" ? !r.project : r.project===homeFilter);
+  if(qy) list = list.filter(r=>(r.name+" "+r.project).toLowerCase().includes(qy));
+  list.sort((a,b)=> (b.pinned-a.pinned) || (b.updatedAt-a.updatedAt));
+  if(!recents.length){
+    const e=el("div","hempty"); e.innerHTML=`<b>No documents yet</b><span>Open a PDF, or drop one anywhere on this window. It'll show up here on every device.</span>`;
+    const acts=el("div","acts"); const o=el("button","btn primary"); o.textContent="Open PDF"; o.addEventListener("click", ()=>$("#fileOpen").click()); acts.appendChild(o); e.appendChild(acts);
+    body.appendChild(e); return;
+  }
+  if(!list.length){ const e=el("div","hempty"); e.innerHTML="<span>No documents match.</span>"; body.appendChild(e); return; }
+  const grid=el("div","hgrid");
+  list.forEach(r=>{
+    const card=el("div","dcard"+(rec&&rec.id===r.id?" cur":""));
+    const open=el("button","dopen"); open.title="Open "+r.name;
+    const th=el("div","dthumb"); const t=lsGet(thumbKey(r.id));
+    if(t){ const im=el("img"); im.src=t; im.alt=""; th.appendChild(im); } else th.innerHTML=PDF_ICON;
+    const info=el("div","dinfo");
+    const nm=el("div","dname"); nm.textContent=r.name;
+    info.appendChild(nm);
+    if(r.project){ const pj=el("span","dproj"); pj.textContent=r.project; info.appendChild(pj); }
+    const mt=el("div","dmeta"); mt.textContent = (rec&&rec.id===r.id ? "Open now · " : "") + fmtWhen(r.updatedAt||Date.now()) + (r.pageCount?` · ${r.pageCount} pg`:"");
+    info.appendChild(mt);
+    open.append(th,info);
+    open.addEventListener("click", ()=> (rec&&rec.id===r.id) ? hideHome() : openRecent(r));
+    const acts=el("div","dacts");
+    const pin=el("button","pin"); pin.innerHTML=STAR; pin.title=r.pinned?"Unpin":"Pin to the top"; pin.setAttribute("aria-pressed",String(r.pinned)); pin.setAttribute("aria-label",(r.pinned?"Unpin ":"Pin ")+r.name);
+    pin.addEventListener("click", ()=>setDocMeta(r,{pinned:!r.pinned}));
+    const more=el("button"); more.innerHTML=DOTS; more.title="Rename, set project or remove"; more.setAttribute("aria-label","Details for "+r.name);
+    more.addEventListener("click", ()=>openDetails(r));
+    acts.append(pin,more);
+    card.append(open,acts); grid.appendChild(card);
   });
+  body.appendChild(grid);
 }
+async function setDocMeta(r, ch){
+  const ap = {};
+  if("pinned" in ch){ r.pinned=ch.pinned; ap.pinned = ch.pinned ? "1" : null; }
+  if("project" in ch){ r.project=ch.project; ap.project = ch.project ? ch.project.slice(0,90) : null; }
+  const meta = {appProperties:ap};
+  if("name" in ch){ r.name=ch.name; ap.docName=ch.name.slice(0,90); meta.name = ch.name.replace(/\.pdf$/i,"")+" (edits).pdfedit"; }
+  if(rec && rec.id===r.id){
+    if("name" in ch){ fileName=ch.name; showName(); }
+    if("project" in ch) rec.project=ch.project;
+  }
+  renderHome();
+  try{ await gfetch(`${API}/files/${r.id}?fields=id`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(meta)}); }
+  catch(e){ if(e.code==="auth") authLost(); else toast("Couldn't save that change to Drive. Try again."); loadRecents(); }
+}
+let detailsFor = null;
+function openDetails(r){
+  detailsFor = r;
+  $("#dName").value = r.name; $("#dProject").value = r.project||""; $("#dPinned").checked = !!r.pinned;
+  $("#projList").innerHTML = projects().map(([n])=>`<option value="${n.replace(/"/g,"&quot;")}"></option>`).join("");
+  $("#dRemove").textContent="Remove from Home"; $("#dRemove").dataset.armed="";
+  $("#detailsModal").classList.add("on"); setTimeout(()=>$("#dName").focus(),30);
+}
+$("#dCancel").addEventListener("click", ()=>$("#detailsModal").classList.remove("on"));
+$("#dSave").addEventListener("click", ()=>{
+  const r=detailsFor; if(!r) return;
+  let name=$("#dName").value.trim()||r.name; if(!/\.pdf$/i.test(name)) name+=".pdf";
+  const project=$("#dProject").value.trim(), pinned=$("#dPinned").checked;
+  const ch={};
+  if(name!==r.name) ch.name=name;
+  if(project!==(r.project||"")) ch.project=project;
+  if(pinned!==!!r.pinned) ch.pinned=pinned;
+  $("#detailsModal").classList.remove("on");
+  if(Object.keys(ch).length) setDocMeta(r,ch);
+});
+$("#dRemove").addEventListener("click", ()=>{
+  const b=$("#dRemove");
+  if(!b.dataset.armed){ b.dataset.armed="1"; b.textContent="Tap again to remove"; return; }
+  $("#detailsModal").classList.remove("on"); removeRecent(detailsFor);
+});
+["#dName","#dProject"].forEach(id=>$(id).addEventListener("keydown", e=>{ if(e.key==="Enter") $("#dSave").click(); e.stopPropagation(); }));
 async function removeRecent(r){
   try{ await gfetch(`${API}/files/${r.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); }
   catch(e){ if(e.code==="auth") authLost(); else toast("Couldn't remove it. Try again."); return; }
-  if(rec && rec.id===r.id){ rec=null; setSync("local","Removed from recents"); }
-  toast("Removed from recents. The PDF itself stays in your Drive.", 3500);
+  if(rec && rec.id===r.id){ rec=null; setSync("local","Removed from Home"); }
+  lsSet(thumbKey(r.id), null);
+  toast("Removed from Home. The PDF itself stays in your Drive.", 3500);
   loadRecents();
+}
+async function flushSync(){
+  if(!rec || !connected()) return;
+  clearTimeout(syncTimer);
+  if(syncing){ await new Promise(r=>{ const t=setInterval(()=>{ if(!syncing){ clearInterval(t); r(); } },100); }); }
+  await doSync();
 }
 async function openRecent(r){
   finishEdit();
   $("#busy").classList.add("on");
   try{
+    await flushSync();
     const state = JSON.parse(new TextDecoder().decode(await driveBytes(r.id)));
     const loaded=[];
     for(const id of state.sources||[]){
-      const bytes = await driveBytes(id);
-      const pdf = await parsePdf(bytes); if(!pdf) throw new Error("bad");
-      loaded.push({bytes,pdf,id});
+      let c = srcCache.get(id);
+      if(!c){
+        const bytes = await driveBytes(id);
+        const pdf = await parsePdf(bytes); if(!pdf) throw new Error("bad");
+        const proxies=[]; for(let i=0;i<pdf.numPages;i++) proxies.push(await pdf.getPage(i+1));
+        c = {bytes,pdf,proxies}; srcCache.set(id,c);
+      }
+      loaded.push({id, ...c});
     }
-    docs=[]; runsCache.clear(); undoStack=[]; redoStack=[]; sel=null;
-    for(const L of loaded) await addSource(L.bytes, L.pdf, L.id);
+    docs = loaded.map(L=>({bytes:L.bytes, pdf:L.pdf, proxies:L.proxies, assetId:L.id, name:null}));
+    runsCache.clear(); wordsCache.clear(); undoStack=[]; redoStack=[]; sel=null;
     pages = (state.pages||[]).map(o=>Object.assign({}, o, {annots:o.annots||[], proxy:o.blank?null:docs[o.doc].proxies[o.index]}));
     nextId = Math.max(state.nextId||1, ...pages.map(p=>p.id+1), ...pages.flatMap(p=>p.annots.map(a=>a.id+1)));
-    fileName = state.name||r.name||"document.pdf"; rec = {id:r.id, createdAt:state.createdAt||Date.now(), exportId:state.exportId||null}; userOpened = true;
-    showName(); setTool("select"); fitScale(); syncButtons(); setSync("saved");
-    $("#recentModal").classList.remove("on");
+    fileName = r.name||state.name||"document.pdf";
+    rec = {id:r.id, createdAt:state.createdAt||Date.now(), exportId:state.exportId||null, project:r.project||""}; userOpened = true;
+    showName(); setTool("select"); hideHome(); fitScale(); syncButtons(); setSync("saved");
+    viewer.scrollTop = 0;
     await renderAll();
+    setTimeout(saveThumb, 300);
   }catch(e){
     if(e && e.code==="auth") authLost();
     else toast("Couldn't open that document. Its PDF may have been deleted from Drive.", 4000);
   }finally{ $("#busy").classList.remove("on"); }
 }
-function openRecentsPanel(){ renderRecents(); $("#recentModal").classList.add("on"); if(connected()) loadRecents(); }
-$("#recentBtn").addEventListener("click", openRecentsPanel);
-$("#recentClose").addEventListener("click", ()=>$("#recentModal").classList.remove("on"));
-$("#recentOpen").addEventListener("click", ()=>$("#fileOpen").click());
-$("#recentConnect").addEventListener("click", connectDrive);
-$("#driveBtn").addEventListener("click", ()=>{ if(connected()) openRecentsPanel(); else connectDrive(); });
+function showHome(){
+  finishEdit();
+  saveThumb();
+  flushSync();
+  document.body.classList.add("home-on");
+  document.title = "PDF Editor";
+  renderHome();
+  if(connected()) loadRecents();
+}
+function hideHome(){
+  if(!pages.length) return;
+  document.body.classList.remove("home-on");
+  document.title = fileName.replace(/\.pdf$/i,"") + " · PDF Editor";
+}
+// keep the doc-only buttons for a store-backed open doc; on mobile the home button text hides
+$("#homeBtn").addEventListener("click", ()=>{ document.body.classList.contains("home-on") ? hideHome() : showHome(); });
+$("#hOpen").addEventListener("click", ()=>$("#fileOpen").click());
+$("#hSearch").addEventListener("input", renderHome);
+$("#hSearch").addEventListener("keydown", e=>e.stopPropagation());
+$("#hSample").addEventListener("click", async ()=>{
+  await flushSync();
+  const bytes = await makeSample();
+  await loadBytes(new Uint8Array(bytes), "Sample.pdf", false);
+  undoStack=[]; redoStack=[]; rec=null; userOpened=false; setSync("sample"); syncButtons(); hideHome();
+});
+$("#driveBtn").addEventListener("click", ()=>{ if(connected()) showHome(); else connectDrive(); });
 async function afterConnect(){
   updateDriveBtn();
   try{ const a = await (await gfetch(`${API}/about?fields=user(emailAddress)`)).json(); gEmail = (a.user&&a.user.emailAddress)||""; lsSet("pdfEditor.gemail", gEmail); updateDriveBtn(); }catch(e){ if(e.code==="auth"){ authLost(); return; } }
   loadSignature();
   if(userOpened && !rec) rec = {id:null, createdAt:Date.now()};
   if(rec){ scheduleSync(0); }
-  if($("#recentModal").classList.contains("on") || (!userOpened && !recentsShownOnce)){ recentsShownOnce = true; openRecentsPanel(); }
-  else loadRecents();
+  loadRecents();
 }
 async function initCloud(){
   updateDriveBtn();
@@ -1794,7 +1979,8 @@ async function makeSample(){
   pg.drawText("Try it: pick Edit text, click a line above and retype it. Then Save PDF.", {x:54,y,size:10,font:f,color:rgb(.75,.45,0)});
   return d.save();
 }
-makeSample().then(bytes=>loadBytes(new Uint8Array(bytes), "Sample.pdf", false)).then(()=>{ undoStack=[]; redoStack=[]; syncButtons(); });
+document.body.classList.add("home-on");
+renderHome();
 getDownloads();
 initCloud();
 })();
