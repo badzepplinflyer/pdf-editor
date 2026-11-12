@@ -81,7 +81,10 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .page canvas{display:block}
 .plabel{position:absolute;left:0;top:-18px;font-family:var(--mono);font-size:11px;color:#d7dce1}
 .ov{position:absolute;inset:0;touch-action:pan-x pan-y}
-.ov.t-text,.ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw,.ov.t-check,.ov.t-cross,.ov.t-place,.ov.t-edittext{touch-action:none}
+.ov.t-text,.ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw,.ov.t-check,.ov.t-cross,.ov.t-place,.ov.t-edittext,.ov.t-hltext{touch-action:none}
+.ov.t-hltext{cursor:text}
+.k-hlt{mix-blend-mode:multiply;border-radius:1px}
+.ov:not(.t-select) .k-hlt{pointer-events:none}
 .ov.t-text,.ov.t-check,.ov.t-cross,.ov.t-place{cursor:crosshair}
 .ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw{cursor:crosshair}
 .run{position:absolute;border-radius:2px;cursor:text;outline:1px dashed rgba(0,110,255,.45);background:rgba(0,110,255,.05)}
@@ -179,6 +182,7 @@ main{flex:1;display:flex;min-height:0;position:relative}
   <button class="tool" data-tool="text" title="Click to type new text (T)"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg>Add text</button>
   <button class="tool" data-tool="whiteout" title="Drag to cover something with white (W)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1.5"/><path d="M8 10h8M8 14h5"/></svg>Whiteout</button>
   <button class="tool" data-tool="highlight" title="Drag to highlight (H)"><svg viewBox="0 0 24 24"><path d="M4 21h9"/><path d="M8 16l9-9 3 3-9 9H8z"/></svg>Highlight</button>
+  <button class="tool" data-tool="hltext" title="Drag across words to highlight them (G)"><svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h12M3 17h15"/><rect x="2" y="9.5" width="15" height="5" rx="1" fill="currentColor" fill-opacity=".35" stroke="none"/></svg>Highlight text</button>
   <button class="tool" data-tool="box" title="Drag to draw a box (B)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>Box</button>
   <button class="tool" data-tool="draw" title="Draw freehand (D)"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>Draw</button>
   <button class="tool" data-tool="check" title="Click to stamp a check mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Check</button>
@@ -310,7 +314,8 @@ const HINTS = {
   edittext:"Edit text: every piece of text on the page is outlined. Click one, type the change, then click away. Font, size and color are matched for you.",
   text:"Add text: click where the text should start, then type. Press Esc or click away when done.",
   whiteout:"Whiteout: drag a box over anything you want to hide.",
-  highlight:"Highlight: drag across the text to highlight it.",
+  highlight:"Highlight: drag a box over any area to highlight it.",
+  hltext:"Highlight text: drag from the first word to the last word, or click a single word. It snaps to the words, line by line.",
   box:"Box: drag to draw an outline box. Uses the color and line width on the right.",
   draw:"Draw: drag to draw freehand. Uses the color and line width on the right.",
   check:"Check: click to stamp a check mark. Size follows the Size setting.",
@@ -511,6 +516,13 @@ function renderOverlay(p){
         }
       }
       ov.appendChild(svg);
+    } else if(a.type==="hltext"){
+      for(const r of a.rects){
+        const d = el("div","ann k-hlt"); d.dataset.ann=a.id;
+        place(d, bboxVp(p,[[r[0],r[1]],[r[2],r[3]]])); d.style.background = hexA(a.color,.45);
+        if(isSel) d.classList.add("sel");
+        ov.appendChild(d);
+      }
     } else if(a.type==="image"){
       const d = el("div","ann k-image"); d.dataset.ann=a.id;
       const [x,y]=toVp(p,a.x,a.y);
@@ -693,6 +705,88 @@ function replaceRun(p, key){
   beginEdit(p, a, {snapped:true, caretEnd:true});
 }
 
+/* ---------- word highlighting (Highlight text tool) ---------- */
+const wordsCache = new Map();
+async function ensureWords(p){
+  if(p.blank) return [];
+  const key = p.doc+":"+p.index;
+  if(wordsCache.has(key)) return wordsCache.get(key);
+  let tc; try{ tc = await p.proxy.getTextContent(); }catch(e){ wordsCache.set(key,[]); return []; }
+  const ctx = document.createElement("canvas").getContext("2d"), words = [];
+  for(const it of tc.items){
+    if(!it.str || !it.str.trim()) continue;
+    const t = it.transform, size = Math.hypot(t[2],t[3]) || Math.hypot(t[0],t[1]); if(!size) continue;
+    const ang = Math.atan2(t[1],t[0]), d=[Math.cos(ang),Math.sin(ang)], u=[-d[1],d[0]];
+    const fi = fontInfo(p, it, tc);
+    ctx.font = `${fi.italic?"italic ":""}${fi.bold?"700 ":""}100px ${cssFont(fi.font)}`;
+    const total = ctx.measureText(it.str).width || 1;
+    const k = (it.width || total/100*size) / total;
+    const re = /\S+/g; let m;
+    while((m = re.exec(it.str))){
+      const a = ctx.measureText(it.str.slice(0,m.index)).width*k;
+      const b = ctx.measureText(it.str.slice(0,m.index+m[0].length)).width*k;
+      const P = (s,v)=>[t[4]+d[0]*s+u[0]*v, t[5]+d[1]*s+u[1]*v];
+      const pts = [P(a,-0.24*size),P(b,-0.24*size),P(b,0.92*size),P(a,0.92*size)];
+      const xs = pts.map(q=>q[0]), ys = pts.map(q=>q[1]);
+      words.push({x1:Math.min(...xs), y1:Math.min(...ys), x2:Math.max(...xs), y2:Math.max(...ys), o:P(a,0), e:P(b,0), ang, d, u, size});
+    }
+  }
+  wordsCache.set(key, words);
+  return words;
+}
+function wordAt(words, x, y, maxDist){
+  let best=-1, bd=Infinity;
+  words.forEach((w,i)=>{
+    const dx = x<w.x1 ? w.x1-x : x>w.x2 ? x-w.x2 : 0;
+    const dy = y<w.y1 ? w.y1-y : y>w.y2 ? y-w.y2 : 0;
+    const dist = dx + dy*3;
+    if(dist<bd){ bd=dist; best=i; }
+  });
+  return bd<=maxDist ? best : -1;
+}
+function mergeWords(words, i0, i1){
+  const out=[]; let cur=null, prev=null;
+  for(let i=Math.min(i0,i1); i<=Math.max(i0,i1); i++){
+    const w = words[i];
+    if(cur && Math.abs(prev.ang-w.ang)<0.02){
+      const rx=w.o[0]-prev.o[0], ry=w.o[1]-prev.o[1];
+      const perp = rx*prev.u[0]+ry*prev.u[1];
+      const gx=w.o[0]-prev.e[0], gy=w.o[1]-prev.e[1], gap = gx*prev.d[0]+gy*prev.d[1];
+      if(Math.abs(perp)<prev.size*0.3 && gap>-prev.size*0.5 && gap<prev.size*2.5){
+        cur[0]=Math.min(cur[0],w.x1); cur[1]=Math.min(cur[1],w.y1); cur[2]=Math.max(cur[2],w.x2); cur[3]=Math.max(cur[3],w.y2);
+        prev = w; continue;
+      }
+    }
+    cur = [w.x1,w.y1,w.x2,w.y2]; out.push(cur); prev = w;
+  }
+  return out.map(r=>r.map(n=>Math.round(n*100)/100));
+}
+function startHlText(e, p, start){
+  const words = wordsCache.get(p.doc+":"+p.index);
+  if(p.blank || (words && !words.length)){ toast("There's no selectable text here. Use Highlight to drag a box instead.", 3500); return; }
+  if(!words){ ensureWords(p); toast("Reading the page text. Try again in a second."); return; }
+  const [px,py] = toPdf(p, start[0], start[1]);
+  const i0 = wordAt(words, px, py, 18);
+  if(i0<0){ toast("Start on a word. Use Highlight to drag a box over other areas.", 3000); return; }
+  let i1 = i0;
+  const layer = el("div"); layer.style.cssText="position:absolute;inset:0;pointer-events:none"; p._ov.appendChild(layer);
+  const draw = ()=>{
+    layer.innerHTML="";
+    mergeWords(words, i0, i1).forEach(r=>{ const d=el("div","k-hlt"); d.style.position="absolute"; place(d, bboxVp(p,[[r[0],r[1]],[r[2],r[3]]])); d.style.background=hexA(HL,.45); layer.appendChild(d); });
+  };
+  draw();
+  track(e, p, pt=>{
+    const [x,y] = toPdf(p, pt[0], pt[1]);
+    const i = wordAt(words, x, y, Infinity);
+    if(i>=0 && i!==i1){ i1=i; draw(); }
+  }, ()=>{
+    layer.remove();
+    snap();
+    const a = {id:nid(), type:"hltext", color:HL, rects:mergeWords(words, i0, i1)};
+    p.annots.push(a); renderOverlay(p);
+  });
+}
+
 /* ---------- selection & editing ---------- */
 function select(p, a, quiet){
   sel = a ? {pid:p.id, aid:a.id} : null;
@@ -772,6 +866,7 @@ function onDown(e, p){
   }
   if(tool==="text"){ e.preventDefault(); if(wasEditing){ clearSel(); return; } return addText(p,pt); }
   if(tool==="whiteout"||tool==="highlight"||tool==="box"){ e.preventDefault(); return startRect(e,p,pt); }
+  if(tool==="hltext"){ e.preventDefault(); return startHlText(e,p,pt); }
   if(tool==="draw"){ e.preventDefault(); return startInk(e,p,pt); }
   if(tool==="check"||tool==="cross"){ e.preventDefault(); return stamp(p,pt,tool); }
   if(tool==="place"){ e.preventDefault(); return placeImage(p,pt); }
@@ -785,6 +880,7 @@ function track(e, p, onMove, onUp){
 function shiftAnn(a, dx, dy){
   if(a.type==="whiteout"||a.type==="highlight"||a.type==="box"){ a.x1+=dx;a.x2+=dx;a.y1+=dy;a.y2+=dy; }
   else if(a.type==="ink"){ a.strokes = a.strokes.map(st=>st.map(([x,y])=>[x+dx,y+dy])); }
+  else if(a.type==="hltext"){ a.rects = a.rects.map(r=>[r[0]+dx,r[1]+dy,r[2]+dx,r[3]+dy]); }
   else { a.x+=dx; a.y+=dy; }
 }
 function startMove(e, p, a, start, wasSel){
@@ -879,6 +975,7 @@ function setTool(t){
   document.querySelectorAll(".tool").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool===t || (t==="place" && (b.dataset.tool==="sign"||b.dataset.tool==="image") && pendingImage && pendingImage.from===b.dataset.tool))));
   $("#hint").textContent = HINTS[t]||"";
   if(t!=="select") sel=null;
+  if(t==="hltext"){ Promise.all(pages.map(ensureWords)); }
   if(t==="edittext"){ Promise.all(pages.map(ensureRuns)).then(()=>{ if(tool==="edittext") refreshOverlays(); }); }
   refreshOverlays();
 }
@@ -1007,6 +1104,8 @@ async function buildPdf(){
         if(a.type==="whiteout") pg.drawRectangle({x,y,width:w,height:h,color:rgb(1,1,1)});
         if(a.type==="highlight") pg.drawRectangle({x,y,width:w,height:h,color:hexToRgb(a.color),opacity:.45,blendMode:BlendMode.Multiply});
         if(a.type==="box") pg.drawRectangle({x,y,width:w,height:h,borderColor:hexToRgb(a.color),borderWidth:a.width});
+      } else if(a.type==="hltext"){
+        for(const r of a.rects) pg.drawRectangle({x:Math.min(r[0],r[2]), y:Math.min(r[1],r[3]), width:Math.abs(r[2]-r[0]), height:Math.abs(r[3]-r[1]), color:hexToRgb(a.color), opacity:.45, blendMode:BlendMode.Multiply});
       } else if(a.type==="text"){
         if(a.cover){ const c=a.cover; pg.drawRectangle({x:Math.min(c.x1,c.x2), y:Math.min(c.y1,c.y2), width:Math.abs(c.x2-c.x1), height:Math.abs(c.y2-c.y1), color:hexToRgb(c.color||"#ffffff")}); }
         const f = await getFont(a.font, a.bold, a.italic), u = upVec(a.rot);
@@ -1118,7 +1217,7 @@ window.addEventListener("keydown", e=>{
   if(e.key==="Delete"||e.key==="Backspace"){ if(sel){ e.preventDefault(); deleteSel(); } return; }
   if(e.key==="Escape"){ $("#saveModal").classList.remove("on"); $("#recentModal").classList.remove("on"); $("#sigModal").classList.remove("on"); if(tool!=="select") setTool("select"); else clearSel(); return; }
   if(mod||e.altKey) return;
-  const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",b:"box",d:"draw"};
+  const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",g:"hltext",b:"box",d:"draw"};
   const t=keys[e.key.toLowerCase()]; if(t) setTool(t);
 });
 let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(window.innerWidth>760) thumbsEl.classList.remove("open"); },150); });
