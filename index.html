@@ -133,6 +133,8 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .ropen:hover b{color:var(--accent)}
 .rconfirm{display:flex;align-items:center;gap:6px;font-size:12.5px;padding-right:6px}
 .rconfirm .btn{min-height:28px;padding:3px 9px}
+.legal{font-size:12px;color:var(--muted);align-self:center}
+.legal a{color:var(--muted)}
 .rempty{color:var(--muted);font-size:13px;padding:14px 4px}
 #busy{position:fixed;inset:0;background:rgba(31,35,40,.6);display:none;place-items:center;z-index:70;font-weight:500}
 #busy.on{display:grid}
@@ -254,6 +256,8 @@ main{flex:1;display:flex;min-height:0;position:relative}
     <p id="recentNote">Connect Google Drive to keep your documents in sync across devices.</p>
     <ul class="rlist" id="rlist"></ul>
     <div class="acts">
+      <span class="legal"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></span>
+      <span class="spacer"></span>
       <button class="btn" id="recentClose">Close</button>
       <button class="btn" id="recentConnect">Connect Google Drive</button>
       <button class="btn primary" id="recentOpen">Open a PDF from this device</button>
