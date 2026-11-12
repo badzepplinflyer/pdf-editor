@@ -83,6 +83,13 @@ main{flex:1;display:flex;min-height:0;position:relative}
 .ov{position:absolute;inset:0;touch-action:pan-x pan-y}
 .ov.t-text,.ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw,.ov.t-check,.ov.t-cross,.ov.t-place,.ov.t-edittext,.ov.t-hltext{touch-action:none}
 .ov.t-hltext{cursor:text}
+.ov.t-lasso{cursor:crosshair;touch-action:none}
+.ov.t-erase{touch-action:none}
+.lasso{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.ctx{display:none;align-items:center;gap:6px}
+.ctx.on{display:flex}
+#groupBtn,#ungroupBtn{display:none}
+#groupBtn.on,#ungroupBtn.on{display:inline-flex}
 .k-hlt{mix-blend-mode:multiply;border-radius:1px}
 .ov:not(.t-select) .k-hlt{pointer-events:none}
 .ov.t-text,.ov.t-check,.ov.t-cross,.ov.t-place{cursor:crosshair}
@@ -185,12 +192,24 @@ main{flex:1;display:flex;min-height:0;position:relative}
   <button class="tool" data-tool="hltext" title="Drag across words to highlight them (G)"><svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h12M3 17h15"/><rect x="2" y="9.5" width="15" height="5" rx="1" fill="currentColor" fill-opacity=".35" stroke="none"/></svg>Highlight text</button>
   <button class="tool" data-tool="box" title="Drag to draw a box (B)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>Box</button>
   <button class="tool" data-tool="draw" title="Draw freehand (D)"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>Draw</button>
+  <button class="tool" data-tool="lasso" title="Draw a loop around items to select them together (L)"><svg viewBox="0 0 24 24"><path d="M7 15.5C4.2 14.3 3 12.6 3 10.8 3 7 7 4 12 4s9 3 9 6.8-4 6.8-9 6.8c-1.2 0-2.3-.2-3.3-.5"/><path d="M8.7 17.1c-.9 1.2-.6 2.6.6 3.1 1.1.5 2.3-.1 2.3-1.3"/></svg>Lasso</button>
+  <button class="tool" data-tool="erase" title="Drag over anything you added to erase it (X)"><svg viewBox="0 0 24 24"><path d="M15.5 4.5l5 5L11 19H6.5l-3-3z"/><path d="M9 11l5 5M6.5 19H21"/></svg>Eraser</button>
   <button class="tool" data-tool="check" title="Click to stamp a check mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Check</button>
   <button class="tool" data-tool="cross" title="Click to stamp an X"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>X</button>
   <button class="tool" data-tool="sign" title="Draw your signature and place it"><svg viewBox="0 0 24 24"><path d="M3 16c3-6 5-9 6-8s-2 7 0 7 3-5 4-4 1 3 3 3 3-2 5-2"/><path d="M3 20h18"/></svg>Sign</button>
   <button class="tool" data-tool="image" title="Place a picture from your device"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>
   <span class="sep"></span>
   <div class="props" id="props">
+    <div class="ctx" data-for="check cross">
+      <label class="lbl" for="stampSel">Style</label>
+      <select id="stampSel"></select>
+      <span class="sep"></span>
+    </div>
+    <div class="ctx" data-for="erase">
+      <label class="lbl" for="eraseSel">Eraser</label>
+      <select id="eraseSel"><option value="6">Small</option><option value="12" selected>Medium</option><option value="24">Large</option></select>
+      <span class="sep"></span>
+    </div>
     <span class="lbl">Color</span>
     <button class="sw" data-color="#000000" style="background:#000000" title="Black" aria-pressed="true"></button>
     <button class="sw" data-color="#555b63" style="background:#555b63" title="Grey"></button>
@@ -214,6 +233,8 @@ main{flex:1;display:flex;min-height:0;position:relative}
       <option value="1">1 pt</option><option value="1.5">1.5 pt</option><option value="2" selected>2 pt</option><option value="3">3 pt</option><option value="5">5 pt</option>
     </select>
     <span class="sep"></span>
+    <button class="btn" id="groupBtn" title="Keep the selected items together (Ctrl+G)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h4a2 2 0 012 2v4"/></svg><span class="t">Group</span></button>
+    <button class="btn" id="ungroupBtn" title="Split the group back into separate items (Ctrl+Shift+G)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg><span class="t">Ungroup</span></button>
     <button class="btn" id="delBtn" title="Delete selected (Del)" disabled><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="t">Delete</span></button>
   </div>
 </nav>
@@ -291,7 +312,7 @@ const pagesEl = $("#pages"), thumbsEl = $("#thumbs"), viewer = $("#viewer");
 let docs = [];          // {bytes, pdf, proxies[]}
 let pages = [];         // {id, doc, index, rot, baseRot, w, h, blank, annots[], proxy}
 let fileName = "Sample.pdf";
-let scale = 1, tool = "select", sel = null; // sel = {pid, aid}
+let scale = 1, tool = "select", sel = null; // sel = {pid, ids:[]}
 let undoStack = [], redoStack = [];
 let renderGen = 0, nextId = 1;
 const runsCache = new Map();
@@ -310,16 +331,18 @@ $("#sizeSel").innerHTML = sizes.map(s=>`<option value="${s}">${s} pt</option>`).
 $("#sizeSel").value = "11";
 
 const HINTS = {
-  select:"Select: click something you added to move it. Click selected text again to change it. Drag the amber corner to resize.",
+  select:"Select: click something you added to move it. Shift+click adds to the selection. Click selected text again to change it. Drag the amber corner to resize.",
   edittext:"Edit text: every piece of text on the page is outlined. Click one, type the change, then click away. Font, size and color are matched for you.",
   text:"Add text: click where the text should start, then type. Press Esc or click away when done.",
   whiteout:"Whiteout: drag a box over anything you want to hide.",
   highlight:"Highlight: drag a box over any area to highlight it.",
+  lasso:"Lasso: draw a loop around the items you want. Then drag to move them together, Group them, or press Delete.",
+  erase:"Eraser: drag over anything you added. Drawings erase where you rub; text, boxes, highlights and stamps erase whole.",
   hltext:"Highlight text: drag from the first word to the last word, or click a single word. It snaps to the words, line by line.",
   box:"Box: drag to draw an outline box. Uses the color and line width on the right.",
   draw:"Draw: drag to draw freehand. Uses the color and line width on the right.",
-  check:"Check: click to stamp a check mark. Size follows the Size setting.",
-  cross:"X: click to stamp an X. Size follows the Size setting.",
+  check:"Check: click to stamp a check mark. Pick the style on the right. Size follows the Size setting.",
+  cross:"X: click to stamp an X. Pick the style on the right. Size follows the Size setting.",
   place:"Click on the page where the picture should go. You can move and resize it afterwards."
 };
 
@@ -345,7 +368,10 @@ function hexToRgb(h){ const n=parseInt(h.slice(1),16); return rgb(((n>>16)&255)/
 function rgbHex(r,g,b){ return "#"+[r,g,b].map(v=>v.toString(16).padStart(2,"0")).join(""); }
 function cssFont(f){ return f==="Courier" ? '"Courier New",Courier,monospace' : f==="TimesRoman" ? '"Times New Roman",Times,serif' : 'Helvetica,Arial,sans-serif'; }
 function findPage(id){ return pages.find(p=>p.id===id); }
-function selAnn(){ if(!sel) return null; const p=findPage(sel.pid); if(!p) return null; const a=p.annots.find(x=>x.id===sel.aid); return a?{p,a}:null; }
+function isSelA(a){ return !!sel && sel.ids.includes(a.id); }
+function selList(){ if(!sel) return null; const p=findPage(sel.pid); if(!p) return null; const list=p.annots.filter(a=>sel.ids.includes(a.id)); return list.length?{p,list}:null; }
+function selAnn(){ const s=selList(); return s && s.list.length===1 ? {p:s.p, a:s.list[0]} : null; }
+function groupOf(p,a){ return a.group ? p.annots.filter(x=>x.group===a.group) : [a]; }
 
 /* ---------- history ---------- */
 function serialize(){
@@ -354,7 +380,11 @@ function serialize(){
 function structSig(){ return pages.map(p=>p.id+":"+p.rot).join(","); }
 function restore(str){
   const before = structSig();
-  pages = JSON.parse(str).map(o=>Object.assign(o,{proxy:o.blank?null:docs[o.doc].proxies[o.index]}));
+  const prev = new Map(pages.map(p=>[p.id,p]));
+  pages = JSON.parse(str).map(o=>{
+    const old = prev.get(o.id) || {};
+    return Object.assign(o, {proxy:o.blank?null:docs[o.doc].proxies[o.index], _vp:old._vp, _canvas:old._canvas, _ov:old._ov, _wrap:old._wrap, _thumb:old._thumb, _thumbScale:old._thumbScale});
+  });
   sel = null;
   scheduleSync();
   if(structSig()!==before) renderAll(); else { pages.forEach(p=>{ p._vp=vpFor(p,scale); }); refreshOverlays(); }
@@ -367,6 +397,11 @@ function syncButtons(){
   $("#undoBtn").disabled = !undoStack.length;
   $("#redoBtn").disabled = !redoStack.length;
   $("#delBtn").disabled = !sel;
+  const s = selList();
+  const grouped = !!s && s.list.some(a=>a.group);
+  const oneGroup = !!s && s.list.length>1 && s.list.every(a=>a.group && a.group===s.list[0].group);
+  $("#groupBtn").classList.toggle("on", !!s && s.list.length>1 && !oneGroup);
+  $("#ungroupBtn").classList.toggle("on", grouped);
 }
 
 /* ---------- loading ---------- */
@@ -445,18 +480,46 @@ async function renderAll(){
     renderOverlay(p);
   });
   renderThumbs(gen);
-  for(const p of pages){
-    if(gen!==renderGen) return;
-    await drawCanvas(p, p._canvas, scale);
-    if(gen!==renderGen) return;
-    if(tool==="edittext"){ await ensureRuns(p); if(gen===renderGen) renderOverlay(p); }
-  }
-  for(const p of pages){ if(gen!==renderGen) return; if(p._thumb) await drawCanvas(p, p._thumb, p._thumbScale); }
+  syncCtx();
+  // Only draw pages (and thumbnails) when they're near the screen, one at a time
+  if(pageObs) pageObs.disconnect();
+  if(thumbObs) thumbObs.disconnect();
+  const firstDone = [];
+  pageObs = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      pageObs.unobserve(en.target);
+      const p = findPage(+en.target.dataset.pid); if(!p) return;
+      const done = queueDraw(gen, async ()=>{
+        await drawCanvas(p, p._canvas, scale);
+        if(gen!==renderGen) return;
+        if(tool==="edittext"){ await ensureRuns(p); if(gen===renderGen) renderOverlay(p); }
+        if(tool==="hltext") ensureWords(p);
+      });
+      firstDone.push(done);
+    });
+  }, {root:viewer, rootMargin:"1500px 0px"});
+  pages.forEach(p=>pageObs.observe(p._wrap));
+  thumbObs = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      thumbObs.unobserve(en.target);
+      const p = findPage(+en.target.dataset.pid); if(p && p._thumb) queueDraw(gen, ()=>drawCanvas(p, p._thumb, p._thumbScale));
+    });
+  }, {root:thumbsEl, rootMargin:"600px 0px"});
+  thumbsEl.querySelectorAll(".thumb").forEach(t=>thumbObs.observe(t));
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  await Promise.all(firstDone);
+}
+let pageObs=null, thumbObs=null, drawChain=Promise.resolve();
+function queueDraw(gen, fn){
+  drawChain = drawChain.then(()=> gen===renderGen ? fn() : null).catch(()=>{});
+  return drawChain;
 }
 async function drawCanvas(p, cv, s){
   const v = vpFor(p, s), dpr = window.devicePixelRatio||1;
   cv.width = Math.max(1, Math.floor(v.width*dpr)); cv.height = Math.max(1, Math.floor(v.height*dpr));
-  const ctx = cv.getContext("2d", {willReadFrequently:true});
+  const ctx = cv.getContext("2d");
   ctx.fillStyle="#fff"; ctx.fillRect(0,0,cv.width,cv.height);
   if(p.blank) return;
   try{ await p.proxy.render({canvasContext:ctx, viewport:v, transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise; }
@@ -478,13 +541,13 @@ function renderOverlay(p){
     }
   }
   for(const a of p.annots){
-    const isSel = sel && sel.aid===a.id;
+    const isSel = isSelA(a), one = isSel && sel.ids.length===1;
     if(a.type==="whiteout"||a.type==="highlight"||a.type==="box"){
       const d = el("div","ann k-"+a.type); d.dataset.ann=a.id;
       const bb = bboxVp(p,[[a.x1,a.y1],[a.x2,a.y2]]); place(d,bb);
       if(a.type==="highlight") d.style.background = hexA(a.color, .45);
       if(a.type==="box"){ d.style.borderColor=a.color; d.style.borderWidth=Math.max(1,a.width*s)+"px"; }
-      if(isSel){ d.classList.add("sel"); d.appendChild(el("div","handle")); }
+      if(isSel){ d.classList.add("sel"); if(one) d.appendChild(el("div","handle")); }
       ov.appendChild(d);
     } else if(a.type==="text"){
       if(a.cover){
@@ -529,7 +592,7 @@ function renderOverlay(p){
       d.style.left=x+"px"; d.style.top=y+"px"; d.style.width=a.w*s+"px"; d.style.height=a.h*s+"px";
       d.style.transform=`rotate(${R-a.rot}deg)`;
       const im = el("img"); im.src=a.src; im.alt=""; d.appendChild(im);
-      if(isSel){ d.classList.add("sel"); d.appendChild(el("div","handle")); }
+      if(isSel){ d.classList.add("sel"); if(one) d.appendChild(el("div","handle")); }
       ov.appendChild(d);
     }
   }
@@ -764,7 +827,7 @@ function mergeWords(words, i0, i1){
 function startHlText(e, p, start){
   const words = wordsCache.get(p.doc+":"+p.index);
   if(p.blank || (words && !words.length)){ toast("There's no selectable text here. Use Highlight to drag a box instead.", 3500); return; }
-  if(!words){ ensureWords(p); toast("Reading the page text. Try again in a second."); return; }
+  if(!words){ $("#hint").textContent="Reading the text on this page…"; ensureWords(p).then(()=>{ $("#hint").textContent=HINTS.hltext; }); return; }
   const [px,py] = toPdf(p, start[0], start[1]);
   const i0 = wordAt(words, px, py, 18);
   if(i0<0){ toast("Start on a word. Use Highlight to drag a box over other areas.", 3000); return; }
@@ -788,13 +851,49 @@ function startHlText(e, p, start){
 }
 
 /* ---------- selection & editing ---------- */
-function select(p, a, quiet){
-  sel = a ? {pid:p.id, aid:a.id} : null;
-  if(a && (a.type==="text")){ setPropsUI({color:a.color,size:a.size,font:a.font,bold:a.bold,italic:a.italic}); }
-  else if(a && (a.type==="ink"||a.type==="box")){ setPropsUI({color:a.color,width:a.width}); }
+function syncPropsFrom(a){
+  if(a.type==="text") setPropsUI({color:a.color,size:a.size,font:a.font,bold:a.bold,italic:a.italic});
+  else if(a.type==="ink"||a.type==="box") setPropsUI({color:a.color,width:a.width});
+}
+function setSel(p, list, quiet){
+  sel = (p && list && list.length) ? {pid:p.id, ids:[...new Set(list.map(a=>a.id))]} : null;
+  if(sel && sel.ids.length===1) syncPropsFrom(list[0]);
   if(!quiet) refreshOverlays(); else syncButtons();
 }
+function select(p, a, quiet){ setSel(p, a ? groupOf(p,a) : [], quiet); }
 function clearSel(){ if(!sel) return; sel=null; refreshOverlays(); }
+/* Boxes (viewport px) that an annotation covers, for lasso and eraser */
+function annBoxes(p, a){
+  const rb = r => bboxVp(p,[[r[0],r[1]],[r[2],r[3]]]);
+  if(a.type==="whiteout"||a.type==="highlight"||a.type==="box") return [rb([a.x1,a.y1,a.x2,a.y2])];
+  if(a.type==="hltext") return a.rects.map(rb);
+  if(a.type==="ink"){ const pts=a.strokes.flat(); return pts.length ? [bboxVp(p, pts)] : []; }
+  const o = p._ov.getBoundingClientRect();
+  const els = [...p._ov.querySelectorAll(`[data-ann="${a.id}"]`)].filter(e=>!e.classList.contains("k-cover"));
+  return els.map(e=>{ const r=e.getBoundingClientRect(); return {x:r.left-o.left, y:r.top-o.top, w:r.width, h:r.height}; });
+}
+function circleHitsBox(cx, cy, r, b){
+  const nx=Math.max(b.x, Math.min(cx, b.x+b.w)), ny=Math.max(b.y, Math.min(cy, b.y+b.h));
+  return (cx-nx)*(cx-nx)+(cy-ny)*(cy-ny) <= r*r;
+}
+function pointInPoly(x, y, poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const [xi,yi]=poly[i], [xj,yj]=poly[j];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function groupSel(){
+  const s = selList(); if(!s || s.list.length<2) return;
+  snap(); const g = nid(); s.list.forEach(a=>a.group=g); refreshOverlays(); toast(`Grouped ${s.list.length} items. They now move and delete together.`);
+}
+function ungroupSel(){
+  const s = selList(); if(!s) return;
+  snap(); s.list.forEach(a=>{ delete a.group; }); refreshOverlays(); toast("Ungrouped");
+}
+$("#groupBtn").addEventListener("click", groupSel);
+$("#ungroupBtn").addEventListener("click", ungroupSel);
 function beginEdit(p, a, opt){
   opt = opt||{};
   const t = p._ov.querySelector(`.k-text[data-ann="${a.id}"]`); if(!t) return;
@@ -820,7 +919,7 @@ function finishEdit(){
   a.text = (t.innerText||"").replace(/\n$/,"").replace(/ /g," ");
   t.removeAttribute("contenteditable");
   if(!a.text.trim() && !a.cover){
-    p.annots = p.annots.filter(x=>x!==a); if(sel&&sel.aid===a.id) sel=null;
+    p.annots = p.annots.filter(x=>x!==a); if(isSelA(a)) sel=null;
     if(isNew) undoStack.pop();
   } else if(a.text===before && !isNew){
     undoStack.pop();
@@ -830,9 +929,10 @@ function finishEdit(){
   scheduleSync();
 }
 function deleteSel(){
-  const s = selAnn(); if(!s) return;
-  if(editing && editing.a===s.a){ editing=null; }
-  snap(); s.p.annots = s.p.annots.filter(x=>x!==s.a); sel=null; refreshOverlays();
+  const s = selList(); if(!s) return;
+  if(editing && s.list.includes(editing.a)){ editing=null; }
+  snap(); s.p.annots = s.p.annots.filter(x=>!s.list.includes(x)); sel=null; refreshOverlays();
+  if(s.list.length>1) toast(`Deleted ${s.list.length} items. Undo brings them back.`);
 }
 
 /* ---------- pointer handling on a page ---------- */
@@ -856,14 +956,27 @@ function onDown(e, p){
 
   if(a && e.target.classList.contains("handle")){ e.preventDefault(); return startResize(e,p,a); }
   if(a && (tool==="select" || (textTool && a.type==="text"))){
-    e.preventDefault(); const wasSel = sel && sel.aid===a.id; select(p,a); return startMove(e,p,a,pt,wasSel);
+    e.preventDefault();
+    const wasSel = isSelA(a);
+    if(tool==="select" && e.shiftKey && sel && sel.pid===p.id){
+      const g = groupOf(p,a), cur = selList(), list = cur ? cur.list : [];
+      setSel(p, wasSel ? list.filter(x=>!g.includes(x)) : list.concat(g));
+      return;
+    }
+    if(!wasSel || (sel && sel.pid!==p.id)) select(p,a);
+    return startMove(e,p,a,pt,wasSel);
   }
   if(tool==="select"){ clearSel(); return; }
   if(tool==="edittext"){
+    e.preventDefault();
     const re = e.target.closest("[data-run]");
-    if(re){ e.preventDefault(); replaceRun(p, +re.dataset.run); } else clearSel();
+    if(re){ replaceRun(p, +re.dataset.run); return; }
+    clearSel();
+    editTextAt(p, pt);
     return;
   }
+  if(tool==="lasso"){ e.preventDefault(); return startLasso(e,p,pt); }
+  if(tool==="erase"){ e.preventDefault(); return startErase(e,p,pt); }
   if(tool==="text"){ e.preventDefault(); if(wasEditing){ clearSel(); return; } return addText(p,pt); }
   if(tool==="whiteout"||tool==="highlight"||tool==="box"){ e.preventDefault(); return startRect(e,p,pt); }
   if(tool==="hltext"){ e.preventDefault(); return startHlText(e,p,pt); }
@@ -873,8 +986,9 @@ function onDown(e, p){
 }
 function track(e, p, onMove, onUp){
   const ov=p._ov; try{ ov.setPointerCapture(e.pointerId); }catch(_){}
-  const mv = ev=>onMove(localPt(ev,p), ev);
-  const up = ev=>{ scheduleSync(); ov.removeEventListener("pointermove",mv); ov.removeEventListener("pointerup",up); ov.removeEventListener("pointercancel",up); onUp(localPt(ev,p), ev); };
+  let raf=0, last=null;
+  const mv = ev=>{ last=[localPt(ev,p), ev]; if(!raf) raf=requestAnimationFrame(()=>{ raf=0; if(last) onMove(last[0], last[1]); }); };
+  const up = ev=>{ if(raf){ cancelAnimationFrame(raf); raf=0; if(last) onMove(last[0], last[1]); } scheduleSync(); ov.removeEventListener("pointermove",mv); ov.removeEventListener("pointerup",up); ov.removeEventListener("pointercancel",up); onUp(localPt(ev,p), ev); };
   ov.addEventListener("pointermove",mv); ov.addEventListener("pointerup",up); ov.addEventListener("pointercancel",up);
 }
 function shiftAnn(a, dx, dy){
@@ -884,17 +998,24 @@ function shiftAnn(a, dx, dy){
   else { a.x+=dx; a.y+=dy; }
 }
 function startMove(e, p, a, start, wasSel){
-  const orig = JSON.parse(JSON.stringify(a));
-  const p0 = toPdf(p, start[0], start[1]);
-  let moved = false;
+  const s = selList();
+  const movers = s && s.p===p && s.list.includes(a) ? s.list : [a];
+  const ids = new Set(movers.map(m=>String(m.id)));
+  const els = [...p._ov.querySelectorAll("[data-ann]")].filter(x=>ids.has(x.dataset.ann) && !x.classList.contains("k-cover"));
+  els.forEach(x=>{ x.dataset.bt = x.style.transform||""; x.style.willChange="transform"; });
+  let moved = false, endPt = start;
   track(e, p, pt=>{
     if(!moved && Math.hypot(pt[0]-start[0], pt[1]-start[1])<4) return;
-    if(!moved){ snap(); moved=true; }
-    const p1 = toPdf(p, pt[0], pt[1]);
-    const fresh = JSON.parse(JSON.stringify(orig)); shiftAnn(fresh, p1[0]-p0[0], p1[1]-p0[1]);
-    Object.assign(a, fresh); renderOverlay(p);
+    moved = true; endPt = pt;
+    const dx=pt[0]-start[0], dy=pt[1]-start[1];
+    els.forEach(x=>{ x.style.transform = `translate(${dx}px,${dy}px) ${x.dataset.bt}`; });
   }, ()=>{
-    if(!moved && a.type==="text" && (wasSel || tool==="text" || tool==="edittext")){ renderOverlay(p); beginEdit(p,a); }
+    if(moved){
+      snap();
+      const p0 = toPdf(p, start[0], start[1]), p1 = toPdf(p, endPt[0], endPt[1]);
+      movers.forEach(m=>shiftAnn(m, p1[0]-p0[0], p1[1]-p0[1]));
+      renderOverlay(p);
+    } else if(a.type==="text" && movers.length===1 && (wasSel || tool==="text" || tool==="edittext")){ renderOverlay(p); beginEdit(p,a); }
   });
 }
 function startResize(e, p, a){
@@ -925,7 +1046,7 @@ function startRect(e, p, start){
     const a={id:nid(), type:tool, x1:A[0], y1:A[1], x2:B[0], y2:B[1]};
     if(tool==="highlight") a.color=HL;
     if(tool==="box"){ a.color=props.color; a.width=props.width; }
-    p.annots.push(a); sel={pid:p.id, aid:a.id}; refreshOverlays();
+    p.annots.push(a); sel={pid:p.id, ids:[a.id]}; refreshOverlays();
   });
 }
 function startInk(e, p, start){
@@ -936,26 +1057,188 @@ function startInk(e, p, start){
   svg.appendChild(pl); p._ov.appendChild(svg);
   const draw=()=>pl.setAttribute("points", pts.map(q=>q.join(",")).join(" ")+(pts.length===1?" "+pts[0].join(","):""));
   draw();
-  track(e, p, pt=>{ const l=pts[pts.length-1]; if(Math.hypot(pt[0]-l[0],pt[1]-l[1])>=1.5){ pts.push(pt); draw(); } }, ()=>{
+  track(e, p, (pt, ev)=>{
+    const list = ev && ev.getCoalescedEvents ? ev.getCoalescedEvents().map(c=>localPt(c,p)) : [pt];
+    let added=false;
+    for(const q of list.length?list:[pt]){ const l=pts[pts.length-1]; if(Math.hypot(q[0]-l[0],q[1]-l[1])>=1.5){ pts.push(q); added=true; } }
+    if(added) draw();
+  }, ()=>{
     snap();
     const a={id:nid(), type:"ink", color:props.color, width:props.width, strokes:[pts.map(q=>toPdf(p,q[0],q[1]).map(n=>Math.round(n*100)/100))]};
     p.annots.push(a); renderOverlay(p);
   });
 }
+const STAMPS = {
+  check:[
+    {id:"check", label:"Check"},
+    {id:"checkBold", label:"Bold check"},
+    {id:"checkHand", label:"Handwritten check"},
+    {id:"checkBox", label:"Check in box"},
+    {id:"checkCircle", label:"Check in circle"}
+  ],
+  cross:[
+    {id:"x", label:"X"},
+    {id:"xBold", label:"Bold X"},
+    {id:"xHand", label:"Handwritten X"},
+    {id:"xBox", label:"X in box"},
+    {id:"xCircle", label:"X in circle"}
+  ]
+};
+function circlePts(cx, cy, r){ const out=[]; for(let i=0;i<=36;i++){ const t=i/36*Math.PI*2; out.push([cx+r*Math.cos(t), cy+r*Math.sin(t)]); } return out; }
+function stampShape(style){
+  const CK=[[0.05,0.55],[0.38,0.9],[0.97,0.1]], CKs=[[0.24,0.54],[0.44,0.74],[0.78,0.28]];
+  const X1=[[0.1,0.1],[0.9,0.9]], X2=[[0.9,0.1],[0.1,0.9]], Xs1=[[0.3,0.3],[0.7,0.7]], Xs2=[[0.7,0.3],[0.3,0.7]];
+  const box=[[0.04,0.04],[0.96,0.04],[0.96,0.96],[0.04,0.96],[0.04,0.04]];
+  switch(style){
+    case "checkBold": return {strokes:[CK], w:2.2};
+    case "checkHand": return {strokes:[[[0.02,0.5],[0.12,0.58],[0.24,0.72],[0.34,0.86],[0.4,0.9],[0.47,0.74],[0.6,0.5],[0.76,0.28],[0.9,0.12],[1.02,0.02]]], w:1.3};
+    case "checkBox": return {strokes:[box, CKs], w:0.8};
+    case "checkCircle": return {strokes:[circlePts(0.5,0.5,0.47), CKs], w:0.8};
+    case "xBold": return {strokes:[X1,X2], w:2.2};
+    case "xHand": return {strokes:[[[0.12,0.08],[0.3,0.3],[0.52,0.55],[0.7,0.76],[0.9,0.94]],[[0.86,0.06],[0.66,0.28],[0.48,0.5],[0.28,0.74],[0.1,0.95]]], w:1.3};
+    case "xBox": return {strokes:[box, Xs1, Xs2], w:0.8};
+    case "xCircle": return {strokes:[circlePts(0.5,0.5,0.47), Xs1, Xs2], w:0.8};
+    case "x": return {strokes:[X1,X2], w:1};
+    default: return {strokes:[CK], w:1};
+  }
+}
+const stampStyle = {check: lsGet("pdfEditor.check")||"check", cross: lsGet("pdfEditor.cross")||"x"};
+function fillStampSel(){
+  const kind = tool==="cross" ? "cross" : "check";
+  $("#stampSel").innerHTML = STAMPS[kind].map(o=>`<option value="${o.id}">${o.label}</option>`).join("");
+  $("#stampSel").value = stampStyle[kind];
+}
+$("#stampSel").addEventListener("change", e=>{ const kind = tool==="cross" ? "cross" : "check"; stampStyle[kind]=e.target.value; lsSet("pdfEditor."+kind, e.target.value); });
 function stamp(p, pt, kind){
   snap();
   const S = props.size*1.25*scale;
-  const shapes = kind==="check" ? [[[0.05,0.55],[0.38,0.9],[0.97,0.1]]] : [[[0.1,0.1],[0.9,0.9]],[[0.9,0.1],[0.1,0.9]]];
-  const strokes = shapes.map(st=>st.map(([u,v])=>toPdf(p, pt[0]-S/2+u*S, pt[1]-S/2+v*S)));
-  const a={id:nid(), type:"ink", color:props.color, width:Math.max(1.2, props.size/6), strokes};
+  const sh = stampShape(stampStyle[kind]);
+  const strokes = sh.strokes.map(st=>st.map(([u,v])=>toPdf(p, pt[0]-S/2+u*S, pt[1]-S/2+v*S).map(n=>Math.round(n*100)/100)));
+  const a={id:nid(), type:"ink", color:props.color, width:Math.round(Math.max(0.9, props.size/6*sh.w)*100)/100, strokes};
   p.annots.push(a); renderOverlay(p);
+}
+
+/* ---------- lasso ---------- */
+function startLasso(e, p, start){
+  const pts=[start];
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.setAttribute("class","lasso"); svg.setAttribute("width",p._vp.width); svg.setAttribute("height",p._vp.height);
+  const pl=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+  pl.setAttribute("fill","rgba(10,102,255,.08)"); pl.setAttribute("stroke","#0a66ff"); pl.setAttribute("stroke-width","1.5"); pl.setAttribute("stroke-dasharray","5 4");
+  svg.appendChild(pl); p._ov.appendChild(svg);
+  track(e, p, pt=>{ const l=pts[pts.length-1]; if(Math.hypot(pt[0]-l[0],pt[1]-l[1])>=3){ pts.push(pt); pl.setAttribute("points", pts.map(q=>q.join(",")).join(" ")); } }, ()=>{
+    svg.remove();
+    if(pts.length<3){ toast("Draw a loop around the items you want."); return; }
+    const hits = p.annots.filter(a=>{
+      const bs = annBoxes(p,a); if(!bs.length) return false;
+      if(a.type==="ink" && a.strokes.flat().some(([x,y])=>{ const v=toVp(p,x,y); return pointInPoly(v[0],v[1],pts); })) return true;
+      return bs.some(b=>pointInPoly(b.x+b.w/2, b.y+b.h/2, pts));
+    });
+    if(!hits.length){ toast("Nothing you added is inside that loop."); return; }
+    const all = [...new Set(hits.flatMap(a=>groupOf(p,a)))];
+    tool = "select";
+    document.querySelectorAll(".tool").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool==="select")));
+    $("#hint").textContent = `${all.length} item${all.length>1?"s":""} selected. Drag any of them to move them together, use Group to keep them together, or press Delete.`;
+    syncCtx();
+    setSel(p, all);
+  });
+}
+
+/* ---------- eraser ---------- */
+function eraserRadius(){ return +$("#eraseSel").value || 12; }
+function setEraserCursor(){
+  const r = eraserRadius(), d = r*2+2;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${d}' height='${d}'><circle cx='${r+1}' cy='${r+1}' r='${r}' fill='rgba(255,255,255,.35)' stroke='black' stroke-width='1'/></svg>`;
+  document.documentElement.style.setProperty("--erase-cursor", `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${r+1} ${r+1}, crosshair`);
+}
+$("#eraseSel").addEventListener("change", ()=>{ setEraserCursor(); syncCtx(); lsSet("pdfEditor.eraser", $("#eraseSel").value); });
+(function(){ const v=lsGet("pdfEditor.eraser"); if(v) $("#eraseSel").value=v; setEraserCursor(); })();
+function densify(p, st){
+  const out=[]; if(!st.length) return out;
+  let prev = toVp(p, st[0][0], st[0][1]); out.push({v:prev, q:st[0]});
+  for(let i=1;i<st.length;i++){
+    const cur = toVp(p, st[i][0], st[i][1]);
+    const n = Math.max(1, Math.ceil(Math.hypot(cur[0]-prev[0], cur[1]-prev[1])/2));
+    for(let k=1;k<=n;k++){
+      const t=k/n, vx=prev[0]+(cur[0]-prev[0])*t, vy=prev[1]+(cur[1]-prev[1])*t;
+      out.push({v:[vx,vy], q: k===n ? st[i] : toPdf(p,vx,vy).map(x=>Math.round(x*100)/100)});
+    }
+    prev = cur;
+  }
+  return out;
+}
+function eraseAt(p, cx, cy, r){
+  let changed=false; const keep=[];
+  for(const a of p.annots){
+    if(a.type==="ink"){
+      const strokes=[];
+      for(const st of a.strokes){
+        const dense = densify(p, st);
+        if(!dense.some(d=>Math.hypot(d.v[0]-cx, d.v[1]-cy)<=r)){ strokes.push(st); continue; }
+        changed=true;
+        let cur=[];
+        for(const d of dense){
+          if(Math.hypot(d.v[0]-cx, d.v[1]-cy)<=r){ if(cur.length>1) strokes.push(cur); cur=[]; }
+          else cur.push(d.q);
+        }
+        if(cur.length>1) strokes.push(cur);
+      }
+      if(strokes.length){ a.strokes=strokes; keep.push(a); }
+      continue;
+    }
+    if(a.type==="hltext"){
+      const rects = a.rects.filter(rc=>!circleHitsBox(cx,cy,r,bboxVp(p,[[rc[0],rc[1]],[rc[2],rc[3]]])));
+      if(rects.length!==a.rects.length){ changed=true; if(rects.length){ a.rects=rects; keep.push(a); } continue; }
+      keep.push(a); continue;
+    }
+    const bs = annBoxes(p,a);
+    if(bs.some(b=>circleHitsBox(cx,cy,r,b))){ changed=true; continue; }
+    keep.push(a);
+  }
+  if(changed) p.annots = keep;
+  return changed;
+}
+function startErase(e, p, start){
+  const r = eraserRadius();
+  let snapped=false, lastPt=start;
+  const run = pt=>{
+    // sweep from the last point so fast strokes don't skip
+    const steps = Math.max(1, Math.ceil(Math.hypot(pt[0]-lastPt[0], pt[1]-lastPt[1])/(r*0.8)));
+    let changed=false;
+    for(let i=1;i<=steps;i++){
+      const x=lastPt[0]+(pt[0]-lastPt[0])*i/steps, y=lastPt[1]+(pt[1]-lastPt[1])*i/steps;
+      if(!snapped){ const before=serialize(); if(eraseAt(p,x,y,r)){ undoStack.push(before); if(undoStack.length>80) undoStack.shift(); redoStack=[]; snapped=true; changed=true; } }
+      else if(eraseAt(p,x,y,r)) changed=true;
+    }
+    lastPt = pt;
+    if(changed){ if(sel) sel=null; renderOverlay(p); syncButtons(); }
+  };
+  run(start);
+  track(e, p, run, ()=>{ if(snapped) scheduleSync(); });
+}
+
+/* ---------- Edit text: click anywhere on a line, even before outlines appear ---------- */
+async function editTextAt(p, pt){
+  if(p.blank) return;
+  const key = p.doc+":"+p.index;
+  if(!runsCache.has(key)){ $("#hint").textContent="Reading the text on this page…"; await ensureRuns(p); $("#hint").textContent=HINTS.edittext; if(tool!=="edittext") return; renderOverlay(p); }
+  const runs = runsCache.get(key)||[];
+  const used = new Set(p.annots.filter(a=>a.runKey!=null).map(a=>a.runKey));
+  let best=null, bd=Infinity;
+  runs.forEach(r=>{
+    if(used.has(r.key)) return;
+    const b = runBox(p,r);
+    const dx = pt[0]<b.x ? b.x-pt[0] : pt[0]>b.x+b.w ? pt[0]-(b.x+b.w) : 0;
+    const dy = pt[1]<b.y ? b.y-pt[1] : pt[1]>b.y+b.h ? pt[1]-(b.y+b.h) : 0;
+    const d = dx+dy*2; if(d<bd){ bd=d; best=r; }
+  });
+  if(best && bd<=6) replaceRun(p, best.key);
 }
 function addText(p, pt){
   snap();
   const R = totalRot(p);
   const [x,y] = toPdf(p, pt[0], pt[1]-props.size*scale*0.6);
   const a={id:nid(), type:"text", x, y, rot:R, size:props.size, font:props.font, bold:props.bold, italic:props.italic, color:props.color, text:""};
-  p.annots.push(a); sel={pid:p.id, aid:a.id}; renderOverlay(p); syncButtons();
+  p.annots.push(a); sel={pid:p.id, ids:[a.id]}; renderOverlay(p); syncButtons();
   beginEdit(p, a, {snapped:true, isNew:true});
 }
 function placeImage(p, pt){
@@ -965,16 +1248,23 @@ function placeImage(p, pt){
   const [x,y] = toPdf(p, pt[0]-w*scale/2, pt[1]-h*scale/2);
   const a={id:nid(), type:"image", x, y, rot:totalRot(p), w, h, src:pendingImage.src};
   p.annots.push(a); pendingImage=null;
-  setTool("select"); sel={pid:p.id, aid:a.id}; refreshOverlays();
+  setTool("select"); sel={pid:p.id, ids:[a.id]}; refreshOverlays();
 }
 
 /* ---------- tools & properties UI ---------- */
+function syncCtx(){
+  document.querySelectorAll(".ctx").forEach(c=>c.classList.toggle("on", c.dataset.for.split(" ").includes(tool)));
+  if(tool==="check"||tool==="cross") fillStampSel();
+  const cur = tool==="erase" ? document.documentElement.style.getPropertyValue("--erase-cursor") : "";
+  document.querySelectorAll(".ov").forEach(o=>{ o.style.cursor = cur; });
+}
 function setTool(t){
   finishEdit();
   tool = t;
   document.querySelectorAll(".tool").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool===t || (t==="place" && (b.dataset.tool==="sign"||b.dataset.tool==="image") && pendingImage && pendingImage.from===b.dataset.tool))));
   $("#hint").textContent = HINTS[t]||"";
   if(t!=="select") sel=null;
+  syncCtx();
   if(t==="hltext"){ Promise.all(pages.map(ensureWords)); }
   if(t==="edittext"){ Promise.all(pages.map(ensureRuns)).then(()=>{ if(tool==="edittext") refreshOverlays(); }); }
   refreshOverlays();
@@ -998,12 +1288,11 @@ function setPropsUI(o){
 }
 function applyProp(k, v){
   const o={}; o[k]=v; setPropsUI(o);
-  const s = selAnn(); if(!s) return;
-  const a=s.a;
-  const fits = a.type==="text" ? ["color","size","font","bold","italic"].includes(k) : (a.type==="ink"||a.type==="box") ? ["color","width"].includes(k) : false;
-  if(!fits) return;
-  if(editing && editing.a===a){ a[k]=v; styleText(editing.el,a); editing.el.focus(); return; }
-  snap(); a[k]=v; renderOverlay(s.p);
+  const s = selList(); if(!s) return;
+  const fits = a => a.type==="text" ? ["color","size","font","bold","italic"].includes(k) : (a.type==="ink"||a.type==="box") ? ["color","width"].includes(k) : false;
+  const list = s.list.filter(fits); if(!list.length) return;
+  if(editing && list.length===1 && editing.a===list[0]){ list[0][k]=v; styleText(editing.el,list[0]); editing.el.focus(); return; }
+  snap(); list.forEach(a=>a[k]=v); renderOverlay(s.p);
 }
 document.querySelectorAll(".sw").forEach(s=>s.addEventListener("click", ()=>applyProp("color", s.dataset.color)));
 $("#colorPick").addEventListener("input", e=>applyProp("color", e.target.value));
@@ -1214,10 +1503,12 @@ window.addEventListener("keydown", e=>{
   if(inField) return;
   if(mod && e.key.toLowerCase()==="z"){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
   if(mod && e.key.toLowerCase()==="y"){ e.preventDefault(); redo(); return; }
+  if(mod && e.key.toLowerCase()==="g"){ e.preventDefault(); e.shiftKey ? ungroupSel() : groupSel(); return; }
+  if(mod && e.key.toLowerCase()==="a" && tool==="select"){ const pid = sel ? sel.pid : (pages[0]&&pages[0].id); const p=findPage(pid); if(p&&p.annots.length){ e.preventDefault(); setSel(p, p.annots); } return; }
   if(e.key==="Delete"||e.key==="Backspace"){ if(sel){ e.preventDefault(); deleteSel(); } return; }
   if(e.key==="Escape"){ $("#saveModal").classList.remove("on"); $("#recentModal").classList.remove("on"); $("#sigModal").classList.remove("on"); if(tool!=="select") setTool("select"); else clearSel(); return; }
   if(mod||e.altKey) return;
-  const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",g:"hltext",b:"box",d:"draw"};
+  const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",g:"hltext",b:"box",d:"draw",l:"lasso",x:"erase"};
   const t=keys[e.key.toLowerCase()]; if(t) setTool(t);
 });
 let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(window.innerWidth>760) thumbsEl.classList.remove("open"); },150); });
