@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alex's PDF Editor</title>
+<meta name="theme-color" content="#1f2328">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: dark job-trailer chrome on top, page thumbnails left, paper on a grey desk in the middle. Hi-vis amber marks the active tool and Save. */
+  --chrome:#1f2328;
+  --chrome-2:#2a3037;
+  --line:#3b434d;
+  --text:#e9ecef;
+  --muted:#9aa4af;
+  --accent:#ffb000;
+  --accent-ink:#1f1600;
+  --desk:#4c545d;
+  --danger:#ff6b5b;
+  --ui:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--chrome);color:var(--text);font:14px/1.4 var(--ui);display:flex;flex-direction:column;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Top bar */
+.bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:600;letter-spacing:.01em;display:flex;align-items:center;gap:8px;margin-right:4px}
+.brand i{display:inline-block;width:10px;height:22px;background:var(--accent);border-radius:2px}
+.fname{font-family:var(--mono);font-size:12.5px;color:var(--muted);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--chrome-2);border:1px solid var(--line);border-radius:6px;padding:6px 10px;min-height:34px;white-space:nowrap}
+.btn:hover{border-color:#56606c}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.grp{display:flex;align-items:center;gap:4px}
+.zoomlbl{font-family:var(--mono);font-size:12px;min-width:44px;text-align:center;color:var(--muted)}
+
+/* Tool row */
+.tools{display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid var(--line);background:var(--chrome-2);overflow-x:auto;scrollbar-width:thin}
+.tool{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:1px solid transparent;border-radius:6px;padding:5px 8px;min-width:58px;color:var(--muted);font-size:11.5px}
+.tool svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tool:hover{color:var(--text);background:#333a42}
+.tool[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent)}
+.sep{width:1px;align-self:stretch;background:var(--line);margin:2px 4px;flex:none}
+.props{display:flex;align-items:center;gap:6px;flex:none}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);padding:0}
+.sw[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--chrome-2) inset}
+.props select,.props input[type=color]{background:var(--chrome);border:1px solid var(--line);border-radius:6px;height:30px;padding:0 6px}
+.props input[type=color]{width:34px;padding:2px}
+.tog{background:var(--chrome);border:1px solid var(--line);border-radius:6px;height:30px;min-width:30px;font-weight:700}
+.tog[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.lbl{font-size:11.5px;color:var(--muted)}
+#delBtn{color:var(--danger)}
+
+/* Main */
+main{flex:1;display:flex;min-height:0;position:relative}
+#thumbs{width:176px;flex:none;overflow-y:auto;border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:12px}
+.thumb{background:var(--chrome-2);border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:6px}
+.thumb.drop-before{box-shadow:0 -3px 0 var(--accent)}
+.thumb.drop-after{box-shadow:0 3px 0 var(--accent)}
+.thumb canvas{display:block;margin:0 auto;background:#fff;cursor:pointer;max-width:100%}
+.thumb .row{display:flex;align-items:center;justify-content:space-between;gap:2px}
+.thumb .num{font-family:var(--mono);font-size:11.5px;color:var(--muted);padding-left:2px}
+.ib{background:none;border:1px solid transparent;border-radius:5px;width:24px;height:24px;display:grid;place-items:center;color:var(--muted);padding:0}
+.ib:hover{color:var(--text);border-color:var(--line)}
+.ib svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ib.del:hover{color:var(--danger)}
+#viewer{flex:1;overflow:auto;background:var(--desk);position:relative}
+#pages{display:flex;flex-direction:column;align-items:center;gap:22px;padding:24px 16px 80px;min-width:min-content}
+.page{position:relative;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.page canvas{display:block}
+.plabel{position:absolute;left:0;top:-18px;font-family:var(--mono);font-size:11px;color:#d7dce1}
+.ov{position:absolute;inset:0;touch-action:pan-x pan-y}
+.ov.t-text,.ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw,.ov.t-check,.ov.t-cross,.ov.t-place,.ov.t-edittext{touch-action:none}
+.ov.t-text,.ov.t-check,.ov.t-cross,.ov.t-place{cursor:crosshair}
+.ov.t-whiteout,.ov.t-highlight,.ov.t-box,.ov.t-draw{cursor:crosshair}
+.run{position:absolute;border-radius:2px;cursor:text;outline:1px dashed rgba(0,110,255,.45);background:rgba(0,110,255,.05)}
+.run:hover{outline:1.5px solid rgba(0,110,255,.9);background:rgba(0,110,255,.12)}
+.ann{position:absolute;touch-action:none}
+.ann.sel{outline:2px solid var(--accent);outline-offset:1px}
+.k-whiteout{background:#fff}
+.k-cover{background:#fff}
+.k-box{border-style:solid}
+.k-highlight{mix-blend-mode:multiply}
+.k-text{white-space:pre;line-height:1.2;transform-origin:0 0;cursor:move;min-width:4px;min-height:1em}
+.k-text[contenteditable]{cursor:text;outline:2px solid var(--accent);background:rgba(255,255,255,.85)}
+.k-image{transform-origin:0 0;cursor:move}
+.k-image img{display:block;width:100%;height:100%;pointer-events:none;user-select:none}
+.ov.t-select .ann:not(.k-cover){cursor:move}
+.inkl{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.inkl .hit{pointer-events:stroke;cursor:move}
+.inkl.sel .vis{filter:drop-shadow(0 0 1.5px #ffb000) drop-shadow(0 0 1.5px #ffb000)}
+.handle{position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:var(--accent);border:2px solid #1f2328;border-radius:3px;cursor:nwse-resize}
+.preview{position:absolute;border:1.5px dashed #0a66ff;background:rgba(10,102,255,.08);pointer-events:none}
+
+/* Drop overlay, toast, dialogs */
+#drop{position:fixed;inset:0;background:rgba(31,35,40,.82);border:3px dashed var(--accent);display:none;place-items:center;font-size:20px;font-weight:600;z-index:40}
+#drop.on{display:grid}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#101317;color:var(--text);border:1px solid var(--line);padding:9px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:min(560px,calc(100% - 32px))}
+#toast.on{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:60;padding:16px}
+.modal.on{display:grid}
+.card{background:var(--chrome-2);border:1px solid var(--line);border-radius:10px;padding:18px;width:min(520px,100%);display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font-size:16px;font-weight:600}
+.card p{margin:0;color:var(--muted);font-size:13px}
+.card input[type=text]{background:var(--chrome);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;font-family:var(--mono);font-size:13px}
+.card .acts{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#sigPad{background:#fff;border-radius:6px;width:100%;height:180px;touch-action:none;cursor:crosshair;display:block}
+.hint{font-size:12px;color:var(--muted);padding:0 12px 6px;background:var(--chrome-2);border-bottom:1px solid var(--line);min-height:20px}
+#pagesToggle{display:none}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.sync::before{content:"";width:8px;height:8px;border-radius:50%;background:#6b7580}
+.sync.saved::before{background:#3ecf6e}
+.sync.saving::before{background:var(--accent)}
+.sync.error::before{background:var(--danger)}
+.card.wide{width:min(640px,100%);max-height:min(80vh,720px)}
+.rlist{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:60px;margin:0;padding:0;list-style:none}
+.ritem{display:flex;align-items:center;gap:8px;background:var(--chrome);border:1px solid var(--line);border-radius:8px;padding:4px 4px 4px 0}
+.ritem.cur{border-color:var(--accent)}
+.ropen{flex:1;min-width:0;text-align:left;background:none;border:0;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.ropen b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ropen span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ropen:hover b{color:var(--accent)}
+.rconfirm{display:flex;align-items:center;gap:6px;font-size:12.5px;padding-right:6px}
+.rconfirm .btn{min-height:28px;padding:3px 9px}
+.rempty{color:var(--muted);font-size:13px;padding:14px 4px}
+#busy{position:fixed;inset:0;background:rgba(31,35,40,.6);display:none;place-items:center;z-index:70;font-weight:500}
+#busy.on{display:grid}
+@media (max-width:760px){
+  .sync .st{display:none}
+  #pagesToggle{display:inline-flex}
+  #thumbs{position:absolute;left:0;top:0;bottom:0;z-index:20;background:var(--chrome);transform:translateX(-100%);transition:transform .2s}
+  #thumbs.open{transform:none;box-shadow:4px 0 16px rgba(0,0,0,.4)}
+  .fname{max-width:150px}
+  .btn .t{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><i></i>PDF Editor</div>
+  <span class="fname" id="fname">Sample.pdf</span>
+  <span class="sync" id="sync" title="Sample page. Open a PDF to start saving to your recents."><span class="st">Sample, not saved</span></span>
+  <span class="spacer"></span>
+  <button class="btn" id="pagesToggle" title="Show pages"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="7" height="9" rx="1"/><rect x="13" y="3" width="7" height="9" rx="1"/><rect x="4" y="14" width="7" height="7" rx="1"/></svg><span class="t">Pages</span></button>
+  <button class="btn" id="driveBtn" title="Connect Google Drive"><svg viewBox="0 0 24 24"><path d="M8.5 4h7l6 10.5-3.5 6h-12L2.5 14.5z"/><path d="M8.5 4l6 10.5H2.5M15.5 4l-6 10.5M21.5 14.5h-12l-3.5 6"/></svg><span class="t">Connect Drive</span></button>
+  <button class="btn" id="recentBtn" title="Your recent documents, on any device"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span class="t">Recent</span></button>
+  <button class="btn" id="openBtn" title="Open a PDF (replaces the current one)"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span class="t">Open</span></button>
+  <button class="btn" id="mergeBtn" title="Add another PDF's pages to the end"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="t">Add PDF</span></button>
+  <div class="grp">
+    <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 010 10h-3"/></svg></button>
+    <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H9a5 5 0 000 10h3"/></svg></button>
+  </div>
+  <div class="grp">
+    <button class="btn" id="zoomOut" title="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <span class="zoomlbl" id="zoomLbl">100%</span>
+    <button class="btn" id="zoomIn" title="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="btn" id="zoomFit" title="Fit page width"><span>Fit</span></button>
+  </div>
+  <button class="btn primary" id="saveBtn" title="Save PDF (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span>Save PDF</span></button>
+</header>
+
+<nav class="tools" id="tools" aria-label="Tools">
+  <button class="tool" data-tool="select" aria-pressed="true" title="Select, move and resize (V)"><svg viewBox="0 0 24 24"><path d="M6 3l12 9-5.5 1.2L15 19l-2.5 1.2-2.6-5.9L6 18z"/></svg>Select</button>
+  <button class="tool" data-tool="edittext" title="Click any existing text to change it (E)"><svg viewBox="0 0 24 24"><path d="M4 7V5h11v2M9.5 5v13M7 18h5"/><path d="M15 19l1-3 4-4 2 2-4 4z"/></svg>Edit text</button>
+  <button class="tool" data-tool="text" title="Click to type new text (T)"><svg viewBox="0 0 24 24"><path d="M5 7V5h14v2M12 5v14M9 19h6"/></svg>Add text</button>
+  <button class="tool" data-tool="whiteout" title="Drag to cover something with white (W)"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1.5"/><path d="M8 10h8M8 14h5"/></svg>Whiteout</button>
+  <button class="tool" data-tool="highlight" title="Drag to highlight (H)"><svg viewBox="0 0 24 24"><path d="M4 21h9"/><path d="M8 16l9-9 3 3-9 9H8z"/></svg>Highlight</button>
+  <button class="tool" data-tool="box" title="Drag to draw a box (B)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg>Box</button>
+  <button class="tool" data-tool="draw" title="Draw freehand (D)"><svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg>Draw</button>
+  <button class="tool" data-tool="check" title="Click to stamp a check mark"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>Check</button>
+  <button class="tool" data-tool="cross" title="Click to stamp an X"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>X</button>
+  <button class="tool" data-tool="sign" title="Draw your signature and place it"><svg viewBox="0 0 24 24"><path d="M3 16c3-6 5-9 6-8s-2 7 0 7 3-5 4-4 1 3 3 3 3-2 5-2"/><path d="M3 20h18"/></svg>Sign</button>
+  <button class="tool" data-tool="image" title="Place a picture from your device"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-9 8"/></svg>Image</button>
+  <span class="sep"></span>
+  <div class="props" id="props">
+    <span class="lbl">Color</span>
+    <button class="sw" data-color="#000000" style="background:#000000" title="Black" aria-pressed="true"></button>
+    <button class="sw" data-color="#555b63" style="background:#555b63" title="Grey"></button>
+    <button class="sw" data-color="#d32f2f" style="background:#d32f2f" title="Red"></button>
+    <button class="sw" data-color="#1565c0" style="background:#1565c0" title="Blue"></button>
+    <button class="sw" data-color="#2e7d32" style="background:#2e7d32" title="Green"></button>
+    <input type="color" id="colorPick" value="#000000" title="Any color">
+    <span class="sep"></span>
+    <label class="lbl" for="fontSel">Font</label>
+    <select id="fontSel">
+      <option value="Helvetica">Helvetica</option>
+      <option value="TimesRoman">Times</option>
+      <option value="Courier">Courier</option>
+    </select>
+    <label class="lbl" for="sizeSel">Size</label>
+    <select id="sizeSel"></select>
+    <button class="tog" id="boldBtn" title="Bold" aria-pressed="false">B</button>
+    <button class="tog" id="italBtn" title="Italic" aria-pressed="false" style="font-style:italic;font-weight:500">I</button>
+    <label class="lbl" for="widthSel">Line</label>
+    <select id="widthSel">
+      <option value="1">1 pt</option><option value="1.5">1.5 pt</option><option value="2" selected>2 pt</option><option value="3">3 pt</option><option value="5">5 pt</option>
+    </select>
+    <span class="sep"></span>
+    <button class="btn" id="delBtn" title="Delete selected (Del)" disabled><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><span class="t">Delete</span></button>
+  </div>
+</nav>
+<div class="hint" id="hint">Select: click something you added to move it. Click it again to change the text.</div>
+
+<main>
+  <aside id="thumbs" aria-label="Pages"></aside>
+  <section id="viewer"><div id="pages"></div></section>
+</main>
+
+<div id="drop">Drop the PDF to open it</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div class="modal" id="saveModal" role="dialog" aria-modal="true" aria-labelledby="saveTitle">
+  <div class="card">
+    <h2 id="saveTitle">Save PDF</h2>
+    <p>Keeps the same name unless you change it here. Save to Google Drive puts the finished PDF in your "PDF Editor" folder (it replaces the copy you saved there last time).</p>
+    <input type="text" id="saveName" aria-label="File name">
+    <div class="acts">
+      <button class="btn" id="saveCancel">Cancel</button>
+      <button class="btn" id="saveGo">Download</button>
+      <button class="btn primary" id="saveDrive">Save to Google Drive</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="sigModal" role="dialog" aria-modal="true" aria-labelledby="sigTitle">
+  <div class="card">
+    <h2 id="sigTitle">Draw your signature</h2>
+    <canvas id="sigPad" width="900" height="360"></canvas>
+    <div class="acts">
+      <button class="btn" id="sigClear">Clear</button>
+      <button class="btn" id="sigLast">Use last one</button>
+      <span class="spacer"></span>
+      <button class="btn" id="sigCancel">Cancel</button>
+      <button class="btn primary" id="sigUse">Place on page</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="recentModal" role="dialog" aria-modal="true" aria-labelledby="recentTitle">
+  <div class="card wide">
+    <h2 id="recentTitle">Recent documents</h2>
+    <p id="recentNote">Connect Google Drive to keep your documents in sync across devices.</p>
+    <ul class="rlist" id="rlist"></ul>
+    <div class="acts">
+      <button class="btn" id="recentClose">Close</button>
+      <button class="btn" id="recentConnect">Connect Google Drive</button>
+      <button class="btn primary" id="recentOpen">Open a PDF from this device</button>
+    </div>
+  </div>
+</div>
+<div id="busy">Opening…</div>
+
+<input type="file" id="fileOpen" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileMerge" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+
+<script src="https://accounts.google.com/gsi/client" async></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+(function(){
+"use strict";
+const {PDFDocument, rgb, degrees, StandardFonts, BlendMode, LineCapStyle} = PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const $ = s => document.querySelector(s);
+const pagesEl = $("#pages"), thumbsEl = $("#thumbs"), viewer = $("#viewer");
+
+/* ---------- state ---------- */
+let docs = [];          // {bytes, pdf, proxies[]}
+let pages = [];         // {id, doc, index, rot, baseRot, w, h, blank, annots[], proxy}
+let fileName = "Sample.pdf";
+let scale = 1, tool = "select", sel = null; // sel = {pid, aid}
+let undoStack = [], redoStack = [];
+let renderGen = 0, nextId = 1;
+const runsCache = new Map();
+let editing = null;     // {p, a, el, before, isNew}
+let pendingImage = null;
+let cloud = null;          // {db, assets, uid, col, profile}
+let rec = null;            // current recent: {id, createdAt}
+let recents = [], cloudSig = null, recentsShownOnce = false, userOpened = false;
+let syncing = false, syncAgain = false, syncTimer = null;
+const props = {color:"#000000", size:11, font:"Helvetica", bold:false, italic:false, width:2};
+const HL = "#ffe14d";
+const nid = () => nextId++;
+
+const sizes = [6,7,8,9,10,11,12,14,16,18,20,24,28,32,40,48];
+$("#sizeSel").innerHTML = sizes.map(s=>`<option value="${s}">${s} pt</option>`).join("");
+$("#sizeSel").value = "11";
+
+const HINTS = {
+  select:"Select: click something you added to move it. Click selected text again to change it. Drag the amber corner to resize.",
+  edittext:"Edit text: every piece of text on the page is outlined. Click one, type the change, then click away. Font, size and color are matched for you.",
+  text:"Add text: click where the text should start, then type. Press Esc or click away when done.",
+  whiteout:"Whiteout: drag a box over anything you want to hide.",
+  highlight:"Highlight: drag across the text to highlight it.",
+  box:"Box: drag to draw an outline box. Uses the color and line width on the right.",
+  draw:"Draw: drag to draw freehand. Uses the color and line width on the right.",
+  check:"Check: click to stamp a check mark. Size follows the Size setting.",
+  cross:"X: click to stamp an X. Size follows the Size setting.",
+  place:"Click on the page where the picture should go. You can move and resize it afterwards."
+};
+
+/* ---------- helpers ---------- */
+function toast(msg, ms=2600){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"), ms); }
+function el(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
+function totalRot(p){ return (((p.baseRot+p.rot)%360)+360)%360; }
+function upVec(deg){ const t=deg*Math.PI/180; return [-Math.sin(t), Math.cos(t)]; }
+function vpFor(p, s){
+  const rotation = totalRot(p);
+  if(p.blank) return new pdfjsLib.PageViewport({viewBox:[0,0,p.w,p.h], scale:s, rotation, offsetX:0, offsetY:0});
+  return p.proxy.getViewport({scale:s, rotation});
+}
+const toPdf = (p,x,y) => p._vp.convertToPdfPoint(x,y);
+const toVp = (p,x,y) => p._vp.convertToViewportPoint(x,y);
+function bboxVp(p, pts){
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  for(const [x,y] of pts){ const [a,b]=toVp(p,x,y); x1=Math.min(x1,a); y1=Math.min(y1,b); x2=Math.max(x2,a); y2=Math.max(y2,b); }
+  return {x:x1,y:y1,w:x2-x1,h:y2-y1};
+}
+function place(e, bb){ e.style.left=bb.x+"px"; e.style.top=bb.y+"px"; e.style.width=bb.w+"px"; e.style.height=bb.h+"px"; }
+function hexToRgb(h){ const n=parseInt(h.slice(1),16); return rgb(((n>>16)&255)/255, ((n>>8)&255)/255, (n&255)/255); }
+function rgbHex(r,g,b){ return "#"+[r,g,b].map(v=>v.toString(16).padStart(2,"0")).join(""); }
+function cssFont(f){ return f==="Courier" ? '"Courier New",Courier,monospace' : f==="TimesRoman" ? '"Times New Roman",Times,serif' : 'Helvetica,Arial,sans-serif'; }
+function findPage(id){ return pages.find(p=>p.id===id); }
+function selAnn(){ if(!sel) return null; const p=findPage(sel.pid); if(!p) return null; const a=p.annots.find(x=>x.id===sel.aid); return a?{p,a}:null; }
+
+/* ---------- history ---------- */
+function serialize(){
+  return JSON.stringify(pages.map(p=>({id:p.id,doc:p.doc,index:p.index,rot:p.rot,baseRot:p.baseRot,w:p.w,h:p.h,blank:p.blank,annots:p.annots})));
+}
+function structSig(){ return pages.map(p=>p.id+":"+p.rot).join(","); }
+function restore(str){
+  const before = structSig();
+  pages = JSON.parse(str).map(o=>Object.assign(o,{proxy:o.blank?null:docs[o.doc].proxies[o.index]}));
+  sel = null;
+  scheduleSync();
+  if(structSig()!==before) renderAll(); else { pages.forEach(p=>{ p._vp=vpFor(p,scale); }); refreshOverlays(); }
+  syncButtons();
+}
+function snap(){ undoStack.push(serialize()); if(undoStack.length>80) undoStack.shift(); redoStack=[]; syncButtons(); scheduleSync(); }
+function undo(){ finishEdit(); if(!undoStack.length) return; redoStack.push(serialize()); restore(undoStack.pop()); }
+function redo(){ finishEdit(); if(!redoStack.length) return; undoStack.push(serialize()); restore(redoStack.pop()); }
+function syncButtons(){
+  $("#undoBtn").disabled = !undoStack.length;
+  $("#redoBtn").disabled = !redoStack.length;
+  $("#delBtn").disabled = !sel;
+}
+
+/* ---------- loading ---------- */
+async function parsePdf(bytes){
+  try{ return await pdfjsLib.getDocument({data:bytes.slice(), isEvalSupported:false}).promise; }
+  catch(err){ toast(err && err.name==="PasswordException" ? "That PDF is password protected. Remove the password and try again." : "Couldn't open that file. Make sure it's a PDF."); return null; }
+}
+async function addSource(bytes, pdf, assetId){
+  const proxies=[];
+  for(let i=0;i<pdf.numPages;i++) proxies.push(await pdf.getPage(i+1));
+  docs.push({bytes, pdf, proxies, assetId:assetId||null, name:null});
+  return docs.length-1;
+}
+function showName(){
+  $("#fname").textContent = fileName; $("#fname").title = fileName;
+  document.title = fileName.replace(/\.pdf$/i,"") + " · PDF Editor";
+}
+async function loadBytes(bytes, name, append){
+  const pdf = await parsePdf(bytes); if(!pdf) return false;
+  finishEdit();
+  if(!append){ docs=[]; pages=[]; undoStack=[]; redoStack=[]; runsCache.clear(); sel=null; fileName=name||"document.pdf"; rec=null; }
+  else snap();
+  const di = await addSource(bytes, pdf, null);
+  const proxies = docs[di].proxies;
+  proxies.forEach((pr,i)=>{ const v=pr.view; pages.push({id:nid(),doc:di,index:i,rot:0,baseRot:pr.rotate||0,w:v[2]-v[0],h:v[3]-v[1],blank:false,annots:[],proxy:pr}); });
+  showName();
+  if(!append) fitScale();
+  syncButtons();
+  await renderAll();
+  if(append){ toast(`Added ${pdf.numPages} page${pdf.numPages>1?"s":""} from ${name}`); viewer.scrollTop = viewer.scrollHeight; }
+  return true;
+}
+async function openFile(file, append){
+  if(!file) return;
+  if(!/\.pdf$/i.test(file.name) && file.type!=="application/pdf"){ toast("That isn't a PDF."); return; }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const ok = await loadBytes(bytes, file.name, append);
+  if(!ok) return;
+  docs[docs.length-1].name = file.name;
+  userOpened = true;
+  $("#recentModal").classList.remove("on");
+  if(!append){ rec = {id:null, createdAt:Date.now(), exportId:null}; }
+  await uploadSources();
+  scheduleSync(0);
+}
+
+/* ---------- rendering ---------- */
+function fitScale(){
+  const maxW = Math.max(...pages.map(p=>vpFor(p,1).width), 300);
+  const avail = viewer.clientWidth - 40;
+  scale = Math.max(0.4, Math.min(2, avail/maxW));
+  scale = Math.round(scale*100)/100;
+  $("#zoomLbl").textContent = Math.round(scale*100)+"%";
+}
+function setZoom(s){
+  const ratio = viewer.scrollTop / Math.max(1, viewer.scrollHeight);
+  scale = Math.max(0.3, Math.min(4, Math.round(s*100)/100));
+  $("#zoomLbl").textContent = Math.round(scale*100)+"%";
+  renderAll().then(()=>{});
+  requestAnimationFrame(()=>{ viewer.scrollTop = ratio*viewer.scrollHeight; });
+}
+async function renderAll(){
+  finishEdit();
+  const gen = ++renderGen;
+  pagesEl.innerHTML = "";
+  pages.forEach((p,i)=>{
+    p._vp = vpFor(p, scale);
+    const wrap = el("div","page"); wrap.dataset.pid = p.id;
+    wrap.style.width = p._vp.width+"px"; wrap.style.height = p._vp.height+"px";
+    const lab = el("div","plabel"); lab.textContent = `Page ${i+1} of ${pages.length}`;
+    const cv = el("canvas"); cv.style.width=p._vp.width+"px"; cv.style.height=p._vp.height+"px";
+    const ov = el("div","ov");
+    wrap.append(lab, cv, ov); pagesEl.appendChild(wrap);
+    p._canvas = cv; p._ov = ov; p._wrap = wrap;
+    bindOverlay(p, ov);
+    renderOverlay(p);
+  });
+  renderThumbs(gen);
+  for(const p of pages){
+    if(gen!==renderGen) return;
+    await drawCanvas(p, p._canvas, scale);
+    if(gen!==renderGen) return;
+    if(tool==="edittext"){ await ensureRuns(p); if(gen===renderGen) renderOverlay(p); }
+  }
+  for(const p of pages){ if(gen!==renderGen) return; if(p._thumb) await drawCanvas(p, p._thumb, p._thumbScale); }
+}
+async function drawCanvas(p, cv, s){
+  const v = vpFor(p, s), dpr = window.devicePixelRatio||1;
+  cv.width = Math.max(1, Math.floor(v.width*dpr)); cv.height = Math.max(1, Math.floor(v.height*dpr));
+  const ctx = cv.getContext("2d", {willReadFrequently:true});
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,cv.width,cv.height);
+  if(p.blank) return;
+  try{ await p.proxy.render({canvasContext:ctx, viewport:v, transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise; }
+  catch(e){ console.warn(e); }
+}
+function refreshOverlays(){ pages.forEach(renderOverlay); syncButtons(); syncThumbsAnn(); }
+function syncThumbsAnn(){ /* thumbnails show the original page; annotations appear on the main view */ }
+
+function renderOverlay(p){
+  const ov = p._ov; if(!ov) return;
+  ov.innerHTML = "";
+  ov.className = "ov t-"+tool;
+  const s = scale, R = totalRot(p);
+  if(tool==="edittext" && !p.blank){
+    const runs = runsCache.get(p.doc+":"+p.index);
+    if(runs){
+      const used = new Set(p.annots.filter(a=>a.runKey!=null).map(a=>a.runKey));
+      runs.forEach(r=>{ if(used.has(r.key)) return; const d=el("div","run"); d.dataset.run=r.key; place(d, runBox(p,r)); d.title="Click to edit"; ov.appendChild(d); });
+    }
+  }
+  for(const a of p.annots){
+    const isSel = sel && sel.aid===a.id;
+    if(a.type==="whiteout"||a.type==="highlight"||a.type==="box"){
+      const d = el("div","ann k-"+a.type); d.dataset.ann=a.id;
+      const bb = bboxVp(p,[[a.x1,a.y1],[a.x2,a.y2]]); place(d,bb);
+      if(a.type==="highlight") d.style.background = hexA(a.color, .45);
+      if(a.type==="box"){ d.style.borderColor=a.color; d.style.borderWidth=Math.max(1,a.width*s)+"px"; }
+      if(isSel){ d.classList.add("sel"); d.appendChild(el("div","handle")); }
+      ov.appendChild(d);
+    } else if(a.type==="text"){
+      if(a.cover){
+        const c = el("div","ann k-cover"); c.dataset.ann=a.id; c.style.background=a.cover.color||"#fff";
+        place(c, bboxVp(p,[[a.cover.x1,a.cover.y1],[a.cover.x2,a.cover.y2]])); ov.appendChild(c);
+      }
+      const t = el("div","ann k-text"); t.dataset.ann=a.id;
+      const [x,y] = toVp(p,a.x,a.y);
+      t.style.left=x+"px"; t.style.top=y+"px";
+      styleText(t,a);
+      t.style.transform = `rotate(${R-a.rot}deg)`;
+      t.textContent = a.text;
+      if(isSel) t.classList.add("sel");
+      ov.appendChild(t);
+    } else if(a.type==="ink"){
+      const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+      svg.setAttribute("class","inkl"+(isSel?" sel":"")); svg.setAttribute("width",p._vp.width); svg.setAttribute("height",p._vp.height);
+      svg.dataset.ann = a.id;
+      for(const st of a.strokes){
+        const pts = st.map(([x,y])=>toVp(p,x,y).map(n=>n.toFixed(1)).join(",")).join(" ");
+        for(const cls of ["hit","vis"]){
+          const pl = document.createElementNS("http://www.w3.org/2000/svg","polyline");
+          pl.setAttribute("points", st.length===1 ? pts+" "+pts : pts);
+          pl.setAttribute("fill","none"); pl.setAttribute("stroke-linecap","round"); pl.setAttribute("stroke-linejoin","round");
+          pl.setAttribute("class",cls);
+          if(cls==="hit"){ pl.setAttribute("stroke","transparent"); pl.setAttribute("stroke-width", Math.max(14, a.width*s+10)); }
+          else { pl.setAttribute("stroke",a.color); pl.setAttribute("stroke-width", Math.max(.8,a.width*s)); }
+          svg.appendChild(pl);
+        }
+      }
+      ov.appendChild(svg);
+    } else if(a.type==="image"){
+      const d = el("div","ann k-image"); d.dataset.ann=a.id;
+      const [x,y]=toVp(p,a.x,a.y);
+      d.style.left=x+"px"; d.style.top=y+"px"; d.style.width=a.w*s+"px"; d.style.height=a.h*s+"px";
+      d.style.transform=`rotate(${R-a.rot}deg)`;
+      const im = el("img"); im.src=a.src; im.alt=""; d.appendChild(im);
+      if(isSel){ d.classList.add("sel"); d.appendChild(el("div","handle")); }
+      ov.appendChild(d);
+    }
+  }
+}
+function styleText(t,a){
+  t.style.fontSize = a.size*scale+"px";
+  t.style.fontFamily = cssFont(a.font);
+  t.style.fontWeight = a.bold?"700":"400";
+  t.style.fontStyle = a.italic?"italic":"normal";
+  t.style.color = a.color;
+}
+function hexA(h, al){ const n=parseInt(h.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${al})`; }
+
+/* ---------- thumbnails ---------- */
+const ICON = {
+  rl:'<svg viewBox="0 0 24 24"><path d="M4 4v6h6"/><path d="M4.5 10A8 8 0 1 1 6 17"/></svg>',
+  rr:'<svg viewBox="0 0 24 24"><path d="M20 4v6h-6"/><path d="M19.5 10A8 8 0 1 0 18 17"/></svg>',
+  up:'<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  dn:'<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  add:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M12 9v6M9 12h6"/></svg>',
+  del:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>'
+};
+let dragPid = null;
+function renderThumbs(){
+  thumbsEl.innerHTML = "";
+  pages.forEach((p,i)=>{
+    const t = el("div","thumb"); t.draggable = true; t.dataset.pid=p.id;
+    const v1 = vpFor(p,1); p._thumbScale = 140/Math.max(v1.width, v1.height*0.78);
+    const cv = el("canvas"); const tv = vpFor(p,p._thumbScale); cv.style.width=tv.width+"px"; cv.style.height=tv.height+"px";
+    cv.title = "Go to page "+(i+1);
+    cv.addEventListener("click", ()=>{ p._wrap && p._wrap.scrollIntoView({behavior:"smooth", block:"start"}); thumbsEl.classList.remove("open"); });
+    p._thumb = cv;
+    const row = el("div","row");
+    const num = el("span","num"); num.textContent = i+1;
+    const btns = el("div","row");
+    const mk = (ic, title, fn, cls) => { const b=el("button","ib"+(cls?" "+cls:"")); b.innerHTML=ICON[ic]; b.title=title; b.setAttribute("aria-label", title+" (page "+(i+1)+")"); b.addEventListener("click", e=>{ e.stopPropagation(); fn(); }); return b; };
+    btns.append(
+      mk("rl","Rotate left",()=>rotatePage(p,-90)),
+      mk("rr","Rotate right",()=>rotatePage(p,90)),
+      mk("up","Move up",()=>movePage(p,-1)),
+      mk("dn","Move down",()=>movePage(p,1)),
+      mk("add","Insert blank page after",()=>insertBlank(p)),
+      mk("del","Delete page",()=>deletePage(p),"del")
+    );
+    row.append(num, btns);
+    t.append(cv, row);
+    t.addEventListener("dragstart", e=>{ dragPid=p.id; e.dataTransfer.effectAllowed="move"; try{e.dataTransfer.setData("text/plain","page");}catch(_){} });
+    t.addEventListener("dragover", e=>{ if(dragPid==null) return; e.preventDefault(); const r=t.getBoundingClientRect(); const after=e.clientY>r.top+r.height/2; t.classList.toggle("drop-after",after); t.classList.toggle("drop-before",!after); });
+    t.addEventListener("dragleave", ()=>t.classList.remove("drop-after","drop-before"));
+    t.addEventListener("drop", e=>{ if(dragPid==null) return; e.preventDefault(); e.stopPropagation(); const after=t.classList.contains("drop-after"); t.classList.remove("drop-after","drop-before"); reorder(dragPid, p.id, after); dragPid=null; });
+    t.addEventListener("dragend", ()=>{ dragPid=null; });
+    thumbsEl.appendChild(t);
+  });
+}
+function rotatePage(p, d){ snap(); p.rot = ((p.rot+d)%360+360)%360; renderAll(); }
+function movePage(p, d){ const i=pages.indexOf(p), j=i+d; if(j<0||j>=pages.length) return; snap(); pages.splice(i,1); pages.splice(j,0,p); renderAll(); }
+function reorder(fromId, toId, after){
+  if(fromId===toId) return;
+  const from = findPage(fromId); snap();
+  pages.splice(pages.indexOf(from),1);
+  let j = pages.indexOf(findPage(toId)); if(after) j++;
+  pages.splice(j,0,from); renderAll();
+}
+function insertBlank(p){
+  snap(); const v=vpFor(p,1);
+  pages.splice(pages.indexOf(p)+1, 0, {id:nid(),doc:-1,index:-1,rot:0,baseRot:0,w:v.width,h:v.height,blank:true,annots:[],proxy:null});
+  renderAll(); toast("Blank page added");
+}
+function deletePage(p){
+  if(pages.length===1){ toast("A PDF needs at least one page."); return; }
+  snap(); pages.splice(pages.indexOf(p),1); if(sel&&sel.pid===p.id) sel=null; renderAll(); toast("Page deleted. Undo brings it back.");
+}
+
+/* ---------- existing text (Edit text tool) ---------- */
+async function ensureRuns(p){
+  if(p.blank) return;
+  const key = p.doc+":"+p.index; if(runsCache.has(key)) return;
+  let tc; try{ tc = await p.proxy.getTextContent(); }catch(e){ runsCache.set(key,[]); return; }
+  runsCache.set(key, buildRuns(p, tc));
+}
+function fontInfo(p, it, tc){
+  let name = "";
+  try{ if(p.proxy.commonObjs.has(it.fontName)){ const f=p.proxy.commonObjs.get(it.fontName); name=(f&&f.name)||""; } }catch(e){}
+  const fam = ((tc.styles[it.fontName]||{}).fontFamily)||"";
+  const all = (name+" "+fam).toLowerCase();
+  let font = "Helvetica";
+  if(/courier|mono/.test(all)) font="Courier";
+  else if(/times|georgia|garamond|minion|cambria/.test(all) || fam==="serif") font="TimesRoman";
+  return {font, bold:/bold|black|heavy|semibold|demi/.test(all), italic:/italic|oblique/.test(all)};
+}
+function buildRuns(p, tc){
+  const runs=[]; let cur=null;
+  for(const it of tc.items){
+    if(!("str" in it) || !it.str) continue;
+    const s = it.str, t = it.transform;
+    const size = Math.hypot(t[2],t[3]) || Math.hypot(t[0],t[1]);
+    if(!size) continue;
+    const ang = Math.atan2(t[1],t[0]);
+    const d=[Math.cos(ang),Math.sin(ang)], u=[-d[1],d[0]];
+    const ox=t[4], oy=t[5], w=it.width||0;
+    if(cur && Math.abs(cur.ang-ang)<0.02 && Math.abs(cur.size-size)<size*0.15){
+      const rx=ox-cur.ox, ry=oy-cur.oy;
+      const along=rx*d[0]+ry*d[1], perp=rx*u[0]+ry*u[1], gap=along-cur.w;
+      if(Math.abs(perp)<size*0.3 && gap>-size*0.6 && gap<size*0.45){
+        if(gap>size*0.15 && !/\s$/.test(cur.str) && !/^\s/.test(s)) cur.str+=" ";
+        cur.str += s; cur.w = Math.max(cur.w, along+w); cur.items.push(it);
+        continue;
+      }
+    }
+    if(!s.trim()){ cur=null; continue; }
+    cur = {ox,oy,ang,size,w,str:s,items:[it]}; runs.push(cur);
+  }
+  const out=[];
+  const mctx = document.createElement("canvas").getContext("2d");
+  runs.forEach(r=>{
+    r.str = r.str.replace(/\s+$/,"");
+    if(!r.str.trim()) return;
+    const main = r.items.reduce((m,x)=> (x.str.trim().length > m.str.trim().length ? x : m), r.items[0]);
+    Object.assign(r, fontInfo(p, main, tc)); delete r.items;
+    // Keep a leading bullet or dash as its own piece so edits never shift it
+    const m = r.str.match(/^([•·▪●◦–*-])\s+(\S.*)$/);
+    if(m){
+      mctx.font = `${r.italic?"italic ":""}${r.bold?"700 ":""}100px ${cssFont(r.font)}`;
+      const restW = mctx.measureText(m[2]).width/100*r.size;
+      const start = r.w - restW;
+      if(start>0 && start<r.size*3){
+        const d=[Math.cos(r.ang),Math.sin(r.ang)];
+        out.push(Object.assign({}, r, {str:m[1], w:mctx.measureText(m[1]).width/100*r.size}));
+        out.push(Object.assign({}, r, {str:m[2], ox:r.ox+d[0]*start, oy:r.oy+d[1]*start, w:restW}));
+        return;
+      }
+    }
+    out.push(r);
+  });
+  out.forEach((r,i)=>r.key=i);
+  return out;
+}
+function runCorners(r){
+  const d=[Math.cos(r.ang),Math.sin(r.ang)], u=[-d[1],d[0]], s=r.size;
+  const P=(a,b)=>[r.ox+d[0]*a+u[0]*b, r.oy+d[1]*a+u[1]*b];
+  return [P(-0.5,-0.28*s),P(r.w+0.5,-0.28*s),P(r.w+0.5,0.98*s),P(-0.5,0.98*s)];
+}
+function runBox(p,r){ return bboxVp(p, runCorners(r)); }
+function sampleColors(p, bb){
+  try{
+    const c=p._canvas, k=c.width/p._vp.width, ctx=c.getContext("2d",{willReadFrequently:true});
+    const x=Math.max(0,Math.floor(bb.x*k)), y=Math.max(0,Math.floor(bb.y*k));
+    const w=Math.max(1,Math.min(c.width-x,Math.ceil(bb.w*k))), h=Math.max(1,Math.min(c.height-y,Math.ceil(bb.h*k)));
+    const d=ctx.getImageData(x,y,w,h).data;
+    let dark=999, light=-1, dc=[0,0,0], lc=[255,255,255];
+    for(let i=0;i<d.length;i+=4){ const l=d[i]+d[i+1]+d[i+2]; if(l<dark){dark=l;dc=[d[i],d[i+1],d[i+2]];} if(l>light){light=l;lc=[d[i],d[i+1],d[i+2]];} }
+    let ink = dc.every(v=>v<45) ? "#000000" : rgbHex(...dc);
+    if(dark>690) ink="#000000";
+    const bg = lc.every(v=>v>244) ? "#ffffff" : rgbHex(...lc);
+    return {ink, bg};
+  }catch(e){ return {ink:"#000000", bg:"#ffffff"}; }
+}
+function replaceRun(p, key){
+  const runs = runsCache.get(p.doc+":"+p.index)||[];
+  const r = runs.find(x=>x.key===key); if(!r) return;
+  const existing = p.annots.find(a=>a.runKey===key);
+  if(existing){ select(p,existing); beginEdit(p,existing); return; }
+  snap();
+  const corners = runCorners(r);
+  const {ink, bg} = sampleColors(p, runBox(p,r));
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  corners.forEach(([x,y])=>{x1=Math.min(x1,x);y1=Math.min(y1,y);x2=Math.max(x2,x);y2=Math.max(y2,y);});
+  const u=[-Math.sin(r.ang), Math.cos(r.ang)];
+  const a = {id:nid(), type:"text", x:r.ox+u[0]*0.95*r.size, y:r.oy+u[1]*0.95*r.size, rot:r.ang*180/Math.PI,
+    size:Math.round(r.size*10)/10, font:r.font, bold:r.bold, italic:r.italic, color:ink, text:r.str,
+    cover:{x1,y1,x2,y2,color:bg}, runKey:key};
+  p.annots.push(a); select(p,a,true); renderOverlay(p);
+  beginEdit(p, a, {snapped:true, caretEnd:true});
+}
+
+/* ---------- selection & editing ---------- */
+function select(p, a, quiet){
+  sel = a ? {pid:p.id, aid:a.id} : null;
+  if(a && (a.type==="text")){ setPropsUI({color:a.color,size:a.size,font:a.font,bold:a.bold,italic:a.italic}); }
+  else if(a && (a.type==="ink"||a.type==="box")){ setPropsUI({color:a.color,width:a.width}); }
+  if(!quiet) refreshOverlays(); else syncButtons();
+}
+function clearSel(){ if(!sel) return; sel=null; refreshOverlays(); }
+function beginEdit(p, a, opt){
+  opt = opt||{};
+  const t = p._ov.querySelector(`.k-text[data-ann="${a.id}"]`); if(!t) return;
+  if(!opt.snapped) snap();
+  editing = {p, a, el:t, before:a.text, isNew:!!opt.isNew};
+  try{ t.contentEditable = "plaintext-only"; if(t.contentEditable!=="plaintext-only") t.contentEditable="true"; }catch(e){ t.contentEditable="true"; }
+  t.spellcheck = true;
+  t.focus();
+  const range=document.createRange(); range.selectNodeContents(t);
+  if(opt.caretEnd!==false) range.collapse(false);
+  const s=window.getSelection(); s.removeAllRanges(); s.addRange(range);
+  t.addEventListener("input", ()=>{ a.text = t.innerText.replace(/\n$/,""); });
+  t.addEventListener("keydown", e=>{
+    if(e.key==="Escape"){ e.preventDefault(); finishEdit(); }
+    if(e.key==="Enter" && !e.shiftKey && t.contentEditable==="true"){ /* allow newlines */ }
+    e.stopPropagation();
+  });
+  t.addEventListener("blur", ()=>setTimeout(()=>{ if(editing && editing.el===t && document.activeElement!==t) finishEdit(); },0));
+}
+function finishEdit(){
+  if(!editing) return;
+  const {p, a, el:t, before, isNew} = editing; editing = null;
+  a.text = (t.innerText||"").replace(/\n$/,"").replace(/ /g," ");
+  t.removeAttribute("contenteditable");
+  if(!a.text.trim() && !a.cover){
+    p.annots = p.annots.filter(x=>x!==a); if(sel&&sel.aid===a.id) sel=null;
+    if(isNew) undoStack.pop();
+  } else if(a.text===before && !isNew){
+    undoStack.pop();
+  }
+  syncButtons();
+  renderOverlay(p);
+  scheduleSync();
+}
+function deleteSel(){
+  const s = selAnn(); if(!s) return;
+  if(editing && editing.a===s.a){ editing=null; }
+  snap(); s.p.annots = s.p.annots.filter(x=>x!==s.a); sel=null; refreshOverlays();
+}
+
+/* ---------- pointer handling on a page ---------- */
+function localPt(e, p){ const r=p._ov.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+function bindOverlay(p, ov){
+  ov.addEventListener("pointerdown", e=>onDown(e,p));
+  ov.addEventListener("dblclick", e=>{
+    const ae=e.target.closest("[data-ann]"); if(!ae) return;
+    const a=p.annots.find(x=>x.id==ae.dataset.ann); if(a&&a.type==="text"&&!editing){ select(p,a,true); renderOverlay(p); beginEdit(p,a); }
+  });
+}
+function onDown(e, p){
+  if(e.button>0) return;
+  if(e.target.isContentEditable) return;
+  const pt = localPt(e,p);
+  const ae = e.target.closest("[data-ann]");
+  const a = ae ? p.annots.find(x=>x.id==ae.dataset.ann) : null;
+  const wasEditing = !!editing;
+  if(editing) finishEdit();
+  const textTool = tool==="text"||tool==="edittext";
+
+  if(a && e.target.classList.contains("handle")){ e.preventDefault(); return startResize(e,p,a); }
+  if(a && (tool==="select" || (textTool && a.type==="text"))){
+    e.preventDefault(); const wasSel = sel && sel.aid===a.id; select(p,a); return startMove(e,p,a,pt,wasSel);
+  }
+  if(tool==="select"){ clearSel(); return; }
+  if(tool==="edittext"){
+    const re = e.target.closest("[data-run]");
+    if(re){ e.preventDefault(); replaceRun(p, +re.dataset.run); } else clearSel();
+    return;
+  }
+  if(tool==="text"){ e.preventDefault(); if(wasEditing){ clearSel(); return; } return addText(p,pt); }
+  if(tool==="whiteout"||tool==="highlight"||tool==="box"){ e.preventDefault(); return startRect(e,p,pt); }
+  if(tool==="draw"){ e.preventDefault(); return startInk(e,p,pt); }
+  if(tool==="check"||tool==="cross"){ e.preventDefault(); return stamp(p,pt,tool); }
+  if(tool==="place"){ e.preventDefault(); return placeImage(p,pt); }
+}
+function track(e, p, onMove, onUp){
+  const ov=p._ov; try{ ov.setPointerCapture(e.pointerId); }catch(_){}
+  const mv = ev=>onMove(localPt(ev,p), ev);
+  const up = ev=>{ scheduleSync(); ov.removeEventListener("pointermove",mv); ov.removeEventListener("pointerup",up); ov.removeEventListener("pointercancel",up); onUp(localPt(ev,p), ev); };
+  ov.addEventListener("pointermove",mv); ov.addEventListener("pointerup",up); ov.addEventListener("pointercancel",up);
+}
+function shiftAnn(a, dx, dy){
+  if(a.type==="whiteout"||a.type==="highlight"||a.type==="box"){ a.x1+=dx;a.x2+=dx;a.y1+=dy;a.y2+=dy; }
+  else if(a.type==="ink"){ a.strokes = a.strokes.map(st=>st.map(([x,y])=>[x+dx,y+dy])); }
+  else { a.x+=dx; a.y+=dy; }
+}
+function startMove(e, p, a, start, wasSel){
+  const orig = JSON.parse(JSON.stringify(a));
+  const p0 = toPdf(p, start[0], start[1]);
+  let moved = false;
+  track(e, p, pt=>{
+    if(!moved && Math.hypot(pt[0]-start[0], pt[1]-start[1])<4) return;
+    if(!moved){ snap(); moved=true; }
+    const p1 = toPdf(p, pt[0], pt[1]);
+    const fresh = JSON.parse(JSON.stringify(orig)); shiftAnn(fresh, p1[0]-p0[0], p1[1]-p0[1]);
+    Object.assign(a, fresh); renderOverlay(p);
+  }, ()=>{
+    if(!moved && a.type==="text" && (wasSel || tool==="text" || tool==="edittext")){ renderOverlay(p); beginEdit(p,a); }
+  });
+}
+function startResize(e, p, a){
+  snap();
+  const R = totalRot(p);
+  track(e, p, pt=>{
+    if(a.type==="image"){
+      const [tx,ty] = toVp(p,a.x,a.y), ang=(R-a.rot)*Math.PI/180;
+      const vx=pt[0]-tx, vy=pt[1]-ty, lx=vx*Math.cos(ang)+vy*Math.sin(ang);
+      const ratio = a.h/a.w; a.w = Math.max(8, lx/scale); a.h = a.w*ratio;
+    } else {
+      const bb = bboxVp(p,[[a.x1,a.y1],[a.x2,a.y2]]);
+      const x2=Math.max(bb.x+4, pt[0]), y2=Math.max(bb.y+4, pt[1]);
+      const A=toPdf(p,bb.x,bb.y), B=toPdf(p,x2,y2);
+      a.x1=A[0];a.y1=A[1];a.x2=B[0];a.y2=B[1];
+    }
+    renderOverlay(p);
+  }, ()=>{});
+}
+function startRect(e, p, start){
+  const pv = el("div","preview"); p._ov.appendChild(pv);
+  const box = pt=>({x:Math.min(start[0],pt[0]), y:Math.min(start[1],pt[1]), w:Math.abs(pt[0]-start[0]), h:Math.abs(pt[1]-start[1])});
+  track(e, p, pt=>place(pv, box(pt)), pt=>{
+    pv.remove(); const b=box(pt);
+    if(b.w<4||b.h<4){ toast("Drag to draw the area."); return; }
+    snap();
+    const A=toPdf(p,b.x,b.y), B=toPdf(p,b.x+b.w,b.y+b.h);
+    const a={id:nid(), type:tool, x1:A[0], y1:A[1], x2:B[0], y2:B[1]};
+    if(tool==="highlight") a.color=HL;
+    if(tool==="box"){ a.color=props.color; a.width=props.width; }
+    p.annots.push(a); sel={pid:p.id, aid:a.id}; refreshOverlays();
+  });
+}
+function startInk(e, p, start){
+  const pts=[start];
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.setAttribute("class","inkl"); svg.setAttribute("width",p._vp.width); svg.setAttribute("height",p._vp.height);
+  const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");
+  pl.setAttribute("fill","none"); pl.setAttribute("stroke",props.color); pl.setAttribute("stroke-width",Math.max(.8,props.width*scale)); pl.setAttribute("stroke-linecap","round"); pl.setAttribute("stroke-linejoin","round");
+  svg.appendChild(pl); p._ov.appendChild(svg);
+  const draw=()=>pl.setAttribute("points", pts.map(q=>q.join(",")).join(" ")+(pts.length===1?" "+pts[0].join(","):""));
+  draw();
+  track(e, p, pt=>{ const l=pts[pts.length-1]; if(Math.hypot(pt[0]-l[0],pt[1]-l[1])>=1.5){ pts.push(pt); draw(); } }, ()=>{
+    snap();
+    const a={id:nid(), type:"ink", color:props.color, width:props.width, strokes:[pts.map(q=>toPdf(p,q[0],q[1]).map(n=>Math.round(n*100)/100))]};
+    p.annots.push(a); renderOverlay(p);
+  });
+}
+function stamp(p, pt, kind){
+  snap();
+  const S = props.size*1.25*scale;
+  const shapes = kind==="check" ? [[[0.05,0.55],[0.38,0.9],[0.97,0.1]]] : [[[0.1,0.1],[0.9,0.9]],[[0.9,0.1],[0.1,0.9]]];
+  const strokes = shapes.map(st=>st.map(([u,v])=>toPdf(p, pt[0]-S/2+u*S, pt[1]-S/2+v*S)));
+  const a={id:nid(), type:"ink", color:props.color, width:Math.max(1.2, props.size/6), strokes};
+  p.annots.push(a); renderOverlay(p);
+}
+function addText(p, pt){
+  snap();
+  const R = totalRot(p);
+  const [x,y] = toPdf(p, pt[0], pt[1]-props.size*scale*0.6);
+  const a={id:nid(), type:"text", x, y, rot:R, size:props.size, font:props.font, bold:props.bold, italic:props.italic, color:props.color, text:""};
+  p.annots.push(a); sel={pid:p.id, aid:a.id}; renderOverlay(p); syncButtons();
+  beginEdit(p, a, {snapped:true, isNew:true});
+}
+function placeImage(p, pt){
+  if(!pendingImage) return;
+  snap();
+  const w = pendingImage.w, h = pendingImage.h;
+  const [x,y] = toPdf(p, pt[0]-w*scale/2, pt[1]-h*scale/2);
+  const a={id:nid(), type:"image", x, y, rot:totalRot(p), w, h, src:pendingImage.src};
+  p.annots.push(a); pendingImage=null;
+  setTool("select"); sel={pid:p.id, aid:a.id}; refreshOverlays();
+}
+
+/* ---------- tools & properties UI ---------- */
+function setTool(t){
+  finishEdit();
+  tool = t;
+  document.querySelectorAll(".tool").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.tool===t || (t==="place" && (b.dataset.tool==="sign"||b.dataset.tool==="image") && pendingImage && pendingImage.from===b.dataset.tool))));
+  $("#hint").textContent = HINTS[t]||"";
+  if(t!=="select") sel=null;
+  if(t==="edittext"){ Promise.all(pages.map(ensureRuns)).then(()=>{ if(tool==="edittext") refreshOverlays(); }); }
+  refreshOverlays();
+}
+document.querySelectorAll(".tool").forEach(b=>b.addEventListener("click", ()=>{
+  const t=b.dataset.tool;
+  if(t==="sign") return openSig();
+  if(t==="image") return $("#fileImg").click();
+  setTool(t);
+}));
+function setPropsUI(o){
+  Object.assign(props,o);
+  document.querySelectorAll(".sw").forEach(s=>s.setAttribute("aria-pressed", String(s.dataset.color.toLowerCase()===props.color.toLowerCase())));
+  $("#colorPick").value = props.color;
+  if(!sizes.includes(+props.size)){ const sel=$("#sizeSel"); if(![...sel.options].some(o=>+o.value===+props.size)){ const op=el("option"); op.value=props.size; op.textContent=props.size+" pt"; sel.appendChild(op); } }
+  $("#sizeSel").value = String(props.size);
+  $("#fontSel").value = props.font;
+  $("#boldBtn").setAttribute("aria-pressed", String(!!props.bold));
+  $("#italBtn").setAttribute("aria-pressed", String(!!props.italic));
+  if([...$("#widthSel").options].some(o=>+o.value===+props.width)) $("#widthSel").value=String(props.width);
+}
+function applyProp(k, v){
+  const o={}; o[k]=v; setPropsUI(o);
+  const s = selAnn(); if(!s) return;
+  const a=s.a;
+  const fits = a.type==="text" ? ["color","size","font","bold","italic"].includes(k) : (a.type==="ink"||a.type==="box") ? ["color","width"].includes(k) : false;
+  if(!fits) return;
+  if(editing && editing.a===a){ a[k]=v; styleText(editing.el,a); editing.el.focus(); return; }
+  snap(); a[k]=v; renderOverlay(s.p);
+}
+document.querySelectorAll(".sw").forEach(s=>s.addEventListener("click", ()=>applyProp("color", s.dataset.color)));
+$("#colorPick").addEventListener("input", e=>applyProp("color", e.target.value));
+$("#sizeSel").addEventListener("change", e=>applyProp("size", +e.target.value));
+$("#fontSel").addEventListener("change", e=>applyProp("font", e.target.value));
+$("#widthSel").addEventListener("change", e=>applyProp("width", +e.target.value));
+$("#boldBtn").addEventListener("mousedown", e=>e.preventDefault());
+$("#italBtn").addEventListener("mousedown", e=>e.preventDefault());
+document.querySelectorAll(".sw").forEach(s=>s.addEventListener("mousedown", e=>e.preventDefault()));
+$("#boldBtn").addEventListener("click", ()=>applyProp("bold", !props.bold));
+$("#italBtn").addEventListener("click", ()=>applyProp("italic", !props.italic));
+$("#delBtn").addEventListener("click", deleteSel);
+
+/* ---------- images & signature ---------- */
+$("#fileImg").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  const url = await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(f); });
+  const img = await loadImg(url);
+  let src = url;
+  if(!/^data:image\/(png|jpeg)/.test(url)){ const c=el("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext("2d").drawImage(img,0,0); src=c.toDataURL("image/png"); }
+  const w = Math.min(220, img.naturalWidth*0.75), h = w*img.naturalHeight/img.naturalWidth;
+  src = await storeImage(src);
+  pendingImage = {src, w, h, from:"image"}; setTool("place");
+});
+function loadImg(src){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=src; }); }
+
+const pad = $("#sigPad"), pctx = pad.getContext("2d");
+let sigDirty=false;
+function openSig(){
+  finishEdit();
+  pctx.clearRect(0,0,pad.width,pad.height); sigDirty=false;
+  let last=cloudSig; if(!last){ try{ last=localStorage.getItem("pdfEditor.sig"); }catch(e){} }
+  $("#sigLast").style.display = last ? "" : "none";
+  $("#sigModal").classList.add("on");
+}
+(function(){
+  let drawing=false, lp=null;
+  const pos=e=>{ const r=pad.getBoundingClientRect(); return [(e.clientX-r.left)*pad.width/r.width, (e.clientY-r.top)*pad.height/r.height]; };
+  pad.addEventListener("pointerdown", e=>{ drawing=true; lp=pos(e); pad.setPointerCapture(e.pointerId); pctx.lineWidth=5; pctx.lineCap="round"; pctx.lineJoin="round"; pctx.strokeStyle="#0d2a6b"; pctx.beginPath(); pctx.arc(lp[0],lp[1],2.5,0,7); pctx.fillStyle="#0d2a6b"; pctx.fill(); sigDirty=true; });
+  pad.addEventListener("pointermove", e=>{ if(!drawing) return; const q=pos(e); pctx.beginPath(); pctx.moveTo(lp[0],lp[1]); pctx.lineTo(q[0],q[1]); pctx.stroke(); lp=q; });
+  const end=()=>{ drawing=false; };
+  pad.addEventListener("pointerup", end); pad.addEventListener("pointercancel", end);
+})();
+$("#sigClear").addEventListener("click", ()=>{ pctx.clearRect(0,0,pad.width,pad.height); sigDirty=false; });
+$("#sigCancel").addEventListener("click", ()=>$("#sigModal").classList.remove("on"));
+function trimCanvas(c){
+  const ctx=c.getContext("2d"), d=ctx.getImageData(0,0,c.width,c.height).data;
+  let x1=c.width,y1=c.height,x2=0,y2=0;
+  for(let y=0;y<c.height;y++) for(let x=0;x<c.width;x++) if(d[(y*c.width+x)*4+3]>10){ if(x<x1)x1=x; if(x>x2)x2=x; if(y<y1)y1=y; if(y>y2)y2=y; }
+  if(x2<x1) return null;
+  const m=6, o=el("canvas"); o.width=x2-x1+m*2; o.height=y2-y1+m*2;
+  o.getContext("2d").drawImage(c, x1-m, y1-m, o.width, o.height, 0, 0, o.width, o.height);
+  return o;
+}
+async function useSig(src){
+  const img = await loadImg(src);
+  const w = 150, h = w*img.naturalHeight/img.naturalWidth;
+  pendingImage = {src, w, h, from:"sign"};
+  $("#sigModal").classList.remove("on");
+  setTool("place");
+}
+$("#sigUse").addEventListener("click", async ()=>{
+  if(!sigDirty){ toast("Draw your signature in the white box first."); return; }
+  const t = trimCanvas(pad); if(!t) return;
+  let src = t.toDataURL("image/png");
+  try{ localStorage.setItem("pdfEditor.sig", src); }catch(e){}
+  saveSignature(src);
+  useSig(src);
+});
+$("#sigLast").addEventListener("click", ()=>{ let s=cloudSig; if(!s){ try{ s=localStorage.getItem("pdfEditor.sig"); }catch(e){} } if(s) useSig(s); });
+
+/* ---------- saving ---------- */
+const fontMap = {
+  Helvetica:[StandardFonts.Helvetica, StandardFonts.HelveticaBold, StandardFonts.HelveticaOblique, StandardFonts.HelveticaBoldOblique],
+  TimesRoman:[StandardFonts.TimesRoman, StandardFonts.TimesRomanBold, StandardFonts.TimesRomanItalic, StandardFonts.TimesRomanBoldItalic],
+  Courier:[StandardFonts.Courier, StandardFonts.CourierBold, StandardFonts.CourierOblique, StandardFonts.CourierBoldOblique]
+};
+function safeText(font, s){
+  let out=""; for(const ch of s){ if(ch==="\t"){ out+="    "; continue; } try{ font.encodeText(ch); out+=ch; }catch(e){ const alt={"✓":"v","✔":"v","✗":"x","→":"->","←":"<-","≤":"<=","≥":">="}[ch]; out+= alt||"?"; } }
+  return out;
+}
+function dataUrlBytes(u){ const b=atob(u.split(",")[1]); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
+async function buildPdf(){
+  const out = await PDFDocument.create();
+  const libDocs = {}, fonts = {}, imgs = {};
+  const getFont = async (f,b,i)=>{ const key=f+b+i; if(!fonts[key]) fonts[key]=await out.embedFont(fontMap[f||"Helvetica"][(b?1:0)+(i?2:0)]); return fonts[key]; };
+  for(const p of pages){
+    let pg;
+    if(p.blank){ pg = out.addPage([p.w,p.h]); }
+    else {
+      if(!libDocs[p.doc]) libDocs[p.doc] = await PDFDocument.load(docs[p.doc].bytes, {ignoreEncryption:true, updateMetadata:false});
+      [pg] = await out.copyPages(libDocs[p.doc], [p.index]); out.addPage(pg);
+    }
+    pg.setRotation(degrees(totalRot(p)));
+    for(const a of p.annots){
+      if(a.type==="whiteout"||a.type==="highlight"||a.type==="box"){
+        const x=Math.min(a.x1,a.x2), y=Math.min(a.y1,a.y2), w=Math.abs(a.x2-a.x1), h=Math.abs(a.y2-a.y1);
+        if(a.type==="whiteout") pg.drawRectangle({x,y,width:w,height:h,color:rgb(1,1,1)});
+        if(a.type==="highlight") pg.drawRectangle({x,y,width:w,height:h,color:hexToRgb(a.color),opacity:.45,blendMode:BlendMode.Multiply});
+        if(a.type==="box") pg.drawRectangle({x,y,width:w,height:h,borderColor:hexToRgb(a.color),borderWidth:a.width});
+      } else if(a.type==="text"){
+        if(a.cover){ const c=a.cover; pg.drawRectangle({x:Math.min(c.x1,c.x2), y:Math.min(c.y1,c.y2), width:Math.abs(c.x2-c.x1), height:Math.abs(c.y2-c.y1), color:hexToRgb(c.color||"#ffffff")}); }
+        const f = await getFont(a.font, a.bold, a.italic), u = upVec(a.rot);
+        a.text.split("\n").forEach((ln,k)=>{
+          if(!ln) return;
+          const off=(0.95+1.2*k)*a.size;
+          pg.drawText(safeText(f,ln), {x:a.x-off*u[0], y:a.y-off*u[1], size:a.size, font:f, color:hexToRgb(a.color), rotate:degrees(a.rot)});
+        });
+      } else if(a.type==="ink"){
+        const color=hexToRgb(a.color);
+        for(const st of a.strokes){
+          if(st.length===1){ pg.drawCircle({x:st[0][0], y:st[0][1], size:a.width/2, color}); continue; }
+          for(let i=1;i<st.length;i++) pg.drawLine({start:{x:st[i-1][0],y:st[i-1][1]}, end:{x:st[i][0],y:st[i][1]}, thickness:a.width, color, lineCap:LineCapStyle.Round});
+        }
+      } else if(a.type==="image"){
+        if(!imgs[a.src]){ const ib = await imageBytes(a.src); imgs[a.src] = (ib[0]===0xFF && ib[1]===0xD8) ? await out.embedJpg(ib) : await out.embedPng(ib); }
+        const u = upVec(a.rot);
+        pg.drawImage(imgs[a.src], {x:a.x-a.h*u[0], y:a.y-a.h*u[1], width:a.w, height:a.h, rotate:degrees(a.rot)});
+      }
+    }
+  }
+  return out.save();
+}
+let dlPromise = null;
+function getDownloads(){
+  if(!dlPromise){ dlPromise = Promise.resolve(null); }
+  return dlPromise;
+}
+function openSave(){
+  finishEdit();
+  $("#saveName").value = fileName;
+  $("#saveModal").classList.add("on");
+  setTimeout(()=>{ const i=$("#saveName"); i.focus(); i.setSelectionRange(0, i.value.replace(/\.pdf$/i,"").length); }, 30);
+}
+async function doSave(){
+  let name = $("#saveName").value.trim() || fileName;
+  if(!/\.pdf$/i.test(name)) name += ".pdf";
+  const go = $("#saveGo"); go.disabled=true; go.textContent="Saving…";
+  try{
+    const bytes = await buildPdf();
+    const blob = new Blob([bytes], {type:"application/pdf"});
+    const dl = await getDownloads();
+    if(dl){
+      try{ await dl.save({filename:name, data:blob}); fileName=name; showName(); scheduleSync(0); $("#saveModal").classList.remove("on"); toast("Saved "+name); }
+      catch(err){
+        const code = err && err.code;
+        if(code==="declined"){ toast("Save cancelled."); }
+        else if(code==="rate_limited"){ toast("A save prompt is already open. Finish that one first."); }
+        else { fallbackDownload(blob,name); }
+      }
+    } else fallbackDownload(blob, name);
+  }catch(err){ console.error(err); toast("Couldn't build the PDF: "+(err&&err.message||err)); }
+  finally{ go.disabled=false; go.textContent="Download"; }
+}
+async function doSaveDrive(){
+  let name = $("#saveName").value.trim() || fileName;
+  if(!/\.pdf$/i.test(name)) name += ".pdf";
+  if(!connected()){ const ok = await connectDrive(); if(!ok) return; }
+  const b=$("#saveDrive"); b.disabled=true; b.textContent="Saving…";
+  try{
+    const bytes = await buildPdf();
+    if(fileName!==name){ fileName=name; showName(); }
+    await exportToDrive(name, bytes);
+    $("#saveModal").classList.remove("on"); toast("Saved "+name+" to Google Drive");
+    scheduleSync(0);
+  }catch(e){ if(e && e.code==="auth") authLost(); else toast("Couldn't save to Drive. Try again."); }
+  finally{ b.disabled=false; b.textContent="Save to Google Drive"; }
+}
+$("#saveDrive").addEventListener("click", doSaveDrive);
+function fallbackDownload(blob, name){
+  const a=el("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 20000);
+  fileName=name; $("#fname").textContent=name; $("#saveModal").classList.remove("on");
+  toast("Downloaded "+name); scheduleSync(0);
+}
+$("#saveBtn").addEventListener("click", openSave);
+$("#saveCancel").addEventListener("click", ()=>$("#saveModal").classList.remove("on"));
+$("#saveGo").addEventListener("click", doSave);
+$("#saveName").addEventListener("keydown", e=>{ if(e.key==="Enter") doSave(); if(e.key==="Escape") $("#saveModal").classList.remove("on"); e.stopPropagation(); });
+
+/* ---------- top bar ---------- */
+$("#openBtn").addEventListener("click", ()=>$("#fileOpen").click());
+$("#mergeBtn").addEventListener("click", ()=>$("#fileMerge").click());
+$("#fileOpen").addEventListener("change", e=>{ const f=e.target.files[0]; e.target.value=""; openFile(f,false); });
+$("#fileMerge").addEventListener("change", e=>{ const f=e.target.files[0]; e.target.value=""; openFile(f,true); });
+$("#undoBtn").addEventListener("click", undo);
+$("#redoBtn").addEventListener("click", redo);
+$("#zoomIn").addEventListener("click", ()=>setZoom(scale*1.2));
+$("#zoomOut").addEventListener("click", ()=>setZoom(scale/1.2));
+$("#zoomFit").addEventListener("click", ()=>{ fitScale(); setZoom(scale); });
+$("#pagesToggle").addEventListener("click", ()=>thumbsEl.classList.toggle("open"));
+
+/* drag & drop a PDF anywhere */
+let dragDepth=0;
+const isFileDrag = e => e.dataTransfer && [...(e.dataTransfer.types||[])].includes("Files");
+window.addEventListener("dragenter", e=>{ if(!isFileDrag(e)) return; e.preventDefault(); dragDepth++; $("#drop").classList.add("on"); });
+window.addEventListener("dragover", e=>{ if(isFileDrag(e)) e.preventDefault(); });
+window.addEventListener("dragleave", e=>{ if(!isFileDrag(e)) return; dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) $("#drop").classList.remove("on"); });
+window.addEventListener("drop", e=>{ if(!isFileDrag(e)) return; e.preventDefault(); dragDepth=0; $("#drop").classList.remove("on"); const f=e.dataTransfer.files[0]; openFile(f,false); });
+
+/* keyboard */
+window.addEventListener("keydown", e=>{
+  const mod = e.ctrlKey||e.metaKey;
+  const inField = e.target.closest && (e.target.closest("input,select,textarea") || e.target.isContentEditable);
+  if(mod && e.key.toLowerCase()==="s"){ e.preventDefault(); openSave(); return; }
+  if(inField) return;
+  if(mod && e.key.toLowerCase()==="z"){ e.preventDefault(); e.shiftKey?redo():undo(); return; }
+  if(mod && e.key.toLowerCase()==="y"){ e.preventDefault(); redo(); return; }
+  if(e.key==="Delete"||e.key==="Backspace"){ if(sel){ e.preventDefault(); deleteSel(); } return; }
+  if(e.key==="Escape"){ $("#saveModal").classList.remove("on"); $("#recentModal").classList.remove("on"); $("#sigModal").classList.remove("on"); if(tool!=="select") setTool("select"); else clearSel(); return; }
+  if(mod||e.altKey) return;
+  const keys={v:"select",e:"edittext",t:"text",w:"whiteout",h:"highlight",b:"box",d:"draw"};
+  const t=keys[e.key.toLowerCase()]; if(t) setTool(t);
+});
+let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(()=>{ if(window.innerWidth>760) thumbsEl.classList.remove("open"); },150); });
+
+/* ---------- Google Drive: recents on any device ---------- */
+/* Paste the OAuth Client ID from Google Cloud Console here (see README). */
+const GOOGLE_CLIENT_ID = "140477047034-89t3058425fvoaunng6ikkr5443ql3p9.apps.googleusercontent.com";
+const SCOPE = "https://www.googleapis.com/auth/drive.file";
+const API = "https://www.googleapis.com/drive/v3", UP = "https://www.googleapis.com/upload/drive/v3";
+let gToken = null, gExp = 0, gEmail = "", tokenClient = null, folderId = null;
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(e){} }
+(function(){ const t=lsGet("pdfEditor.gtok"), e=+lsGet("pdfEditor.gexp")||0; if(t && Date.now()<e){ gToken=t; gExp=e; } })();
+const configured = () => !/PASTE_YOUR_CLIENT_ID/.test(GOOGLE_CLIENT_ID);
+function connected(){ return !!gToken && Date.now()<gExp; }
+
+function setSync(state, text){
+  const el=$("#sync"); el.className="sync "+state;
+  const labels={saved:"Saved to Drive", saving:"Saving…", local:"Only on this device", error:"Not saved, retrying", sample:"Sample, not saved", auth:"Drive disconnected"};
+  const t=text||labels[state]||"";
+  el.querySelector(".st").textContent=t; el.title=t;
+}
+function updateDriveBtn(){
+  const b=$("#driveBtn"), t=b.querySelector(".t");
+  if(connected()){ b.classList.remove("primary"); t.textContent="Drive"; b.title="Connected to Google Drive"+(gEmail?" as "+gEmail:""); b.dataset.on="1"; }
+  else { t.textContent= lsGet("pdfEditor.gwas") ? "Reconnect Drive" : "Connect Drive"; b.title="Connect Google Drive to sync your documents"; b.dataset.on=""; }
+}
+function waitForGis(){
+  return new Promise(res=>{ let n=0; const t=setInterval(()=>{ if(window.google && google.accounts && google.accounts.oauth2){ clearInterval(t); res(true);} else if(++n>100){ clearInterval(t); res(false);} },100); });
+}
+async function connectDrive(){
+  if(!configured()){ toast("Google Drive isn't set up yet. Add your Client ID (see the README in the GitHub repo).", 5000); return false; }
+  if(!(await waitForGis())){ toast("Couldn't load Google sign-in. Check your connection."); return false; }
+  if(!tokenClient) tokenClient = google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID, scope:SCOPE, callback:()=>{}});
+  const ok = await new Promise(res=>{
+    tokenClient.callback = r=>{
+      if(r.error){ res(false); return; }
+      gToken=r.access_token; gExp=Date.now()+(Number(r.expires_in||3600)-120)*1000;
+      lsSet("pdfEditor.gtok",gToken); lsSet("pdfEditor.gexp",String(gExp)); lsSet("pdfEditor.gwas","1");
+      res(true);
+    };
+    tokenClient.error_callback = ()=>res(false);
+    tokenClient.requestAccessToken({prompt: lsGet("pdfEditor.gwas") ? "" : "consent", hint: lsGet("pdfEditor.gemail")||undefined});
+  });
+  if(!ok){ toast("Google Drive wasn't connected."); updateDriveBtn(); return false; }
+  await afterConnect();
+  return true;
+}
+function dropToken(){ gToken=null; gExp=0; lsSet("pdfEditor.gtok",null); lsSet("pdfEditor.gexp",null); updateDriveBtn(); }
+async function gfetch(url, opt){
+  if(!connected()){ dropToken(); throw {code:"auth"}; }
+  opt = opt||{}; opt.headers = Object.assign({}, opt.headers, {Authorization:"Bearer "+gToken});
+  const r = await fetch(url, opt);
+  if(r.status===401){ dropToken(); throw {code:"auth"}; }
+  if(!r.ok){ let m=""; try{ m=await r.text(); }catch(e){} throw {code:"http", status:r.status, message:m}; }
+  return r;
+}
+const q = s => encodeURIComponent(s);
+async function ensureFolder(){
+  if(folderId) return folderId;
+  const r = await (await gfetch(`${API}/files?q=${q("mimeType='application/vnd.google-apps.folder' and appProperties has { key='pdfEditor' and value='root' } and trashed=false")}&fields=files(id)&pageSize=1`)).json();
+  if(r.files && r.files.length){ folderId=r.files[0].id; return folderId; }
+  const c = await (await gfetch(`${API}/files?fields=id`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:"PDF Editor", mimeType:"application/vnd.google-apps.folder", appProperties:{pdfEditor:"root"}})})).json();
+  folderId=c.id; return folderId;
+}
+let workId = null;
+async function ensureWork(){
+  if(workId) return workId;
+  const root = await ensureFolder();
+  const r = await (await gfetch(`${API}/files?q=${q("mimeType='application/vnd.google-apps.folder' and appProperties has { key='pdfEditor' and value='work' } and trashed=false")}&fields=files(id)&pageSize=1`)).json();
+  if(r.files && r.files.length){ workId=r.files[0].id; return workId; }
+  const c = await (await gfetch(`${API}/files?fields=id`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:"Working files (used by the editor)", parents:[root], mimeType:"application/vnd.google-apps.folder", appProperties:{pdfEditor:"work"}})})).json();
+  workId=c.id; return workId;
+}
+async function driveUpload(meta, blob, fileId){
+  const bd = "pdfed"+Math.random().toString(36).slice(2);
+  const body = new Blob([`--${bd}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${bd}\r\nContent-Type: ${blob.type||"application/octet-stream"}\r\n\r\n`, blob, `\r\n--${bd}--`]);
+  const url = fileId ? `${UP}/files/${fileId}?uploadType=multipart&fields=id,modifiedTime` : `${UP}/files?uploadType=multipart&fields=id,modifiedTime`;
+  return (await gfetch(url, {method:fileId?"PATCH":"POST", headers:{"Content-Type":"multipart/related; boundary="+bd}, body})).json();
+}
+async function driveBytes(id){ return new Uint8Array(await (await gfetch(`${API}/files/${id}?alt=media`)).arrayBuffer()); }
+function authLost(){ setSync("auth"); toast("Google Drive needs to be reconnected. Click Reconnect Drive, then your edits save again.", 5000); }
+
+async function imageBytes(src){
+  if(src.startsWith("data:")) return dataUrlBytes(src);
+  const r = await fetch(src); return new Uint8Array(await r.arrayBuffer());
+}
+async function storeImage(src){ return src; }
+async function uploadSources(){
+  if(!connected() || !rec){ setSync(userOpened ? (lsGet("pdfEditor.gwas")?"auth":"local") : "sample"); return false; }
+  try{
+    const fid = await ensureWork();
+    for(const d of docs){
+      if(d.assetId) continue;
+      setSync("saving","Uploading to Drive…");
+      const r = await driveUpload({name:d.name||fileName, parents:[fid], mimeType:"application/pdf", appProperties:{pdfEditor:"source"}}, new Blob([d.bytes],{type:"application/pdf"}));
+      d.assetId = r.id;
+    }
+    return true;
+  }catch(e){ if(e.code==="auth") authLost(); else setSync("error","Upload to Drive failed"); return false; }
+}
+function scheduleSync(ms){
+  if(!rec || !connected()) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(doSync, ms==null ? 1500 : ms);
+}
+async function doSync(){
+  if(!rec || !connected()) return;
+  if(editing){ scheduleSync(); return; }
+  if(syncing){ syncAgain=true; return; }
+  syncing = true;
+  try{
+    if(docs.some(d=>!d.assetId)){ const ok = await uploadSources(); if(!ok) return; }
+    setSync("saving");
+    const fid = await ensureWork();
+    const body = {app:"pdf-editor", v:1, name:fileName, createdAt:rec.createdAt, updatedAt:Date.now(), pageCount:pages.length,
+      sources:docs.map(d=>d.assetId), exportId:rec.exportId||null, nextId, pages:JSON.parse(serialize())};
+    const meta = {name:fileName.replace(/\.pdf$/i,"")+" (edits).pdfedit", mimeType:"application/json",
+      appProperties:{pdfEditor:"doc", docName:fileName.slice(0,90), pages:String(pages.length)}};
+    if(!rec.id) meta.parents=[fid];
+    const r = await driveUpload(meta, new Blob([JSON.stringify(body)],{type:"application/json"}), rec.id);
+    rec.id = r.id; setSync("saved");
+    if($("#recentModal").classList.contains("on")) loadRecents();
+  }catch(e){
+    if(e.code==="auth") authLost();
+    else { setSync("error"); clearTimeout(syncTimer); syncTimer=setTimeout(doSync, 8000); }
+  }finally{
+    syncing=false;
+    if(syncAgain){ syncAgain=false; doSync(); }
+  }
+}
+async function exportToDrive(name, bytes){
+  const fid = await ensureFolder();
+  const meta = {name, mimeType:"application/pdf", appProperties:{pdfEditor:"export"}};
+  if(rec && rec.exportId){
+    try{ await driveUpload(meta, new Blob([bytes],{type:"application/pdf"}), rec.exportId); return; }catch(e){ if(e.code==="auth") throw e; }
+  }
+  meta.parents=[fid];
+  const r = await driveUpload(meta, new Blob([bytes],{type:"application/pdf"}));
+  if(rec){ rec.exportId = r.id; scheduleSync(0); }
+}
+async function loadSignature(){
+  try{
+    const r = await (await gfetch(`${API}/files?q=${q("appProperties has { key='pdfEditor' and value='sig' } and trashed=false")}&fields=files(id)&pageSize=1`)).json();
+    if(r.files && r.files.length){
+      const b = await driveBytes(r.files[0].id);
+      let bin=""; b.forEach(c=>bin+=String.fromCharCode(c));
+      cloudSig = "data:image/png;base64,"+btoa(bin); window.__sigId = r.files[0].id;
+    }
+  }catch(e){}
+}
+async function saveSignature(src){
+  cloudSig = src;
+  if(!connected()) return;
+  try{
+    const fid = await ensureWork();
+    const meta = {name:"My signature.png", mimeType:"image/png", appProperties:{pdfEditor:"sig"}};
+    if(!window.__sigId) meta.parents=[fid];
+    const r = await driveUpload(meta, new Blob([dataUrlBytes(src)],{type:"image/png"}), window.__sigId||undefined);
+    window.__sigId = r.id;
+  }catch(e){}
+}
+function fmtWhen(ms){
+  const d=new Date(ms), now=new Date();
+  const time=d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  if(d.toDateString()===now.toDateString()) return "Today, "+time;
+  const y=new Date(now); y.setDate(now.getDate()-1);
+  if(d.toDateString()===y.toDateString()) return "Yesterday, "+time;
+  return d.toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"})+", "+time;
+}
+async function loadRecents(){
+  if(!connected()){ recents=[]; renderRecents(); return; }
+  try{
+    const r = await (await gfetch(`${API}/files?q=${q("appProperties has { key='pdfEditor' and value='doc' } and trashed=false")}&orderBy=modifiedTime desc&pageSize=100&fields=files(id,modifiedTime,appProperties)`)).json();
+    recents = (r.files||[]).map(f=>({id:f.id, name:(f.appProperties&&f.appProperties.docName)||"Untitled.pdf", pageCount:+((f.appProperties&&f.appProperties.pages)||0), updatedAt:Date.parse(f.modifiedTime)}));
+  }catch(e){ if(e.code==="auth") authLost(); recents=[]; $("#recentNote").textContent="Couldn't load your recents from Drive. Try again."; }
+  renderRecents();
+}
+function renderRecents(){
+  const ul=$("#rlist"); ul.innerHTML="";
+  const cbtn=$("#recentConnect");
+  if(!connected()){
+    $("#recentNote").textContent = configured() ? "Connect Google Drive to keep your documents in sync. Anything you open is saved to a \"PDF Editor\" folder in your Drive as you edit, and shows up here on every device." : "Google Drive isn't set up yet. Add your Client ID (see the README), then documents sync across devices.";
+    cbtn.style.display = configured() ? "" : "none";
+    cbtn.textContent = lsGet("pdfEditor.gwas") ? "Reconnect Google Drive" : "Connect Google Drive";
+    return;
+  }
+  cbtn.style.display="none";
+  $("#recentNote").textContent = "Saved in the \"PDF Editor\" folder of your Google Drive"+(gEmail?" ("+gEmail+")":"")+". Edits save as you work.";
+  if(!recents.length){ const li=el("li","rempty"); li.textContent="Nothing yet. Open a PDF and it shows up here."; ul.appendChild(li); return; }
+  recents.forEach(r=>{
+    const li=el("li","ritem"+(rec&&rec.id===r.id?" cur":""));
+    const b=el("button","ropen");
+    const n=el("b"); n.textContent=r.name;
+    const m=el("span"); m.textContent=`${fmtWhen(r.updatedAt||Date.now())} · ${r.pageCount||"?"} page${r.pageCount===1?"":"s"}${rec&&rec.id===r.id?" · open now":""}`;
+    b.append(n,m); b.addEventListener("click", ()=>openRecent(r));
+    const del=el("button","ib del"); del.innerHTML=ICON.del; del.title="Remove from recents"; del.setAttribute("aria-label","Remove "+r.name+" from recents");
+    del.addEventListener("click", ()=>{
+      const c=el("div","rconfirm"); c.append("Remove?");
+      const yes=el("button","btn"); yes.textContent="Remove"; yes.style.color="var(--danger)";
+      const no=el("button","btn"); no.textContent="Keep";
+      no.addEventListener("click", ()=>{ c.replaceWith(del); });
+      yes.addEventListener("click", ()=>removeRecent(r));
+      c.append(no,yes); del.replaceWith(c);
+    });
+    li.append(b,del); ul.appendChild(li);
+  });
+}
+async function removeRecent(r){
+  try{ await gfetch(`${API}/files/${r.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); }
+  catch(e){ if(e.code==="auth") authLost(); else toast("Couldn't remove it. Try again."); return; }
+  if(rec && rec.id===r.id){ rec=null; setSync("local","Removed from recents"); }
+  toast("Removed from recents. The PDF itself stays in your Drive.", 3500);
+  loadRecents();
+}
+async function openRecent(r){
+  finishEdit();
+  $("#busy").classList.add("on");
+  try{
+    const state = JSON.parse(new TextDecoder().decode(await driveBytes(r.id)));
+    const loaded=[];
+    for(const id of state.sources||[]){
+      const bytes = await driveBytes(id);
+      const pdf = await parsePdf(bytes); if(!pdf) throw new Error("bad");
+      loaded.push({bytes,pdf,id});
+    }
+    docs=[]; runsCache.clear(); undoStack=[]; redoStack=[]; sel=null;
+    for(const L of loaded) await addSource(L.bytes, L.pdf, L.id);
+    pages = (state.pages||[]).map(o=>Object.assign({}, o, {annots:o.annots||[], proxy:o.blank?null:docs[o.doc].proxies[o.index]}));
+    nextId = Math.max(state.nextId||1, ...pages.map(p=>p.id+1), ...pages.flatMap(p=>p.annots.map(a=>a.id+1)));
+    fileName = state.name||r.name||"document.pdf"; rec = {id:r.id, createdAt:state.createdAt||Date.now(), exportId:state.exportId||null}; userOpened = true;
+    showName(); setTool("select"); fitScale(); syncButtons(); setSync("saved");
+    $("#recentModal").classList.remove("on");
+    await renderAll();
+  }catch(e){
+    if(e && e.code==="auth") authLost();
+    else toast("Couldn't open that document. Its PDF may have been deleted from Drive.", 4000);
+  }finally{ $("#busy").classList.remove("on"); }
+}
+function openRecentsPanel(){ renderRecents(); $("#recentModal").classList.add("on"); if(connected()) loadRecents(); }
+$("#recentBtn").addEventListener("click", openRecentsPanel);
+$("#recentClose").addEventListener("click", ()=>$("#recentModal").classList.remove("on"));
+$("#recentOpen").addEventListener("click", ()=>$("#fileOpen").click());
+$("#recentConnect").addEventListener("click", connectDrive);
+$("#driveBtn").addEventListener("click", ()=>{ if(connected()) openRecentsPanel(); else connectDrive(); });
+async function afterConnect(){
+  updateDriveBtn();
+  try{ const a = await (await gfetch(`${API}/about?fields=user(emailAddress)`)).json(); gEmail = (a.user&&a.user.emailAddress)||""; lsSet("pdfEditor.gemail", gEmail); updateDriveBtn(); }catch(e){ if(e.code==="auth"){ authLost(); return; } }
+  loadSignature();
+  if(userOpened && !rec) rec = {id:null, createdAt:Date.now()};
+  if(rec){ scheduleSync(0); }
+  if($("#recentModal").classList.contains("on") || (!userOpened && !recentsShownOnce)){ recentsShownOnce = true; openRecentsPanel(); }
+  else loadRecents();
+}
+async function initCloud(){
+  updateDriveBtn();
+  setSync(userOpened ? "local" : "sample");
+  if(connected()) await afterConnect();
+}
+/* ---------- start with a sample page ---------- */
+async function makeSample(){
+  const d = await PDFDocument.create();
+  const pg = d.addPage([612,792]);
+  const f = await d.embedFont(StandardFonts.Helvetica), b = await d.embedFont(StandardFonts.HelveticaBold);
+  const grey = rgb(.4,.42,.45);
+  pg.drawText("Sample punch list", {x:54,y:722,size:20,font:b});
+  pg.drawText("Open your own PDF with the Open button, or drop it anywhere on this window.", {x:54,y:700,size:10,font:f,color:grey});
+  pg.drawLine({start:{x:54,y:688},end:{x:558,y:688},thickness:.6,color:rgb(.8,.8,.8)});
+  pg.drawText("CRITICAL (2)", {x:54,y:660,size:13,font:b});
+  const rows = [
+    ["• Level 3 corridor inspection (Inspection · Thu 11/12)", b, 11, 66],
+    ["- Note: Walk it first, make a punch list", f, 9, 80],
+    ["• Generator exhaust (Inspection · Thu 11/12)", b, 11, 66],
+    ["- Note: Needs insulation before inspection", f, 9, 80]
+  ];
+  let y=638; rows.forEach(([t,font,size,x])=>{ pg.drawText(t,{x,y,size,font,color:font===f?grey:rgb(0,0,0)}); y -= size===11?18:20; });
+  y -= 8; pg.drawText("HIGH (2)", {x:54,y,size:13,font:b}); y-=22;
+  [["• Finish mini splits in the parking garage (Install)",b,11,66],["- Material: Concrete anchors (on site)",f,9,80],["• Unit 635 missing grille (Install)",b,11,66]].forEach(([t,font,size,x])=>{ pg.drawText(t,{x,y,size,font,color:font===f?grey:rgb(0,0,0)}); y -= size===11?18:20; });
+  y -= 24;
+  pg.drawText("Try it: pick Edit text, click a line above and retype it. Then Save PDF.", {x:54,y,size:10,font:f,color:rgb(.75,.45,0)});
+  return d.save();
+}
+makeSample().then(bytes=>loadBytes(new Uint8Array(bytes), "Sample.pdf", false)).then(()=>{ undoStack=[]; redoStack=[]; syncButtons(); });
+getDownloads();
+initCloud();
+})();
+</script>
+</body>
+</html>
