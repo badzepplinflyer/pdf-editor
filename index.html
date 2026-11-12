@@ -382,8 +382,9 @@ function restore(str){
   const before = structSig();
   const prev = new Map(pages.map(p=>[p.id,p]));
   pages = JSON.parse(str).map(o=>{
-    const old = prev.get(o.id) || {};
-    return Object.assign(o, {proxy:o.blank?null:docs[o.doc].proxies[o.index], _vp:old._vp, _canvas:old._canvas, _ov:old._ov, _wrap:old._wrap, _thumb:old._thumb, _thumbScale:old._thumbScale});
+    o.proxy = o.blank ? null : docs[o.doc].proxies[o.index];
+    const old = prev.get(o.id);
+    return old ? Object.assign(old, o) : o;   // keep the same page object so everything wired to it stays current
   });
   sel = null;
   scheduleSync();
@@ -938,9 +939,10 @@ function deleteSel(){
 /* ---------- pointer handling on a page ---------- */
 function localPt(e, p){ const r=p._ov.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
 function bindOverlay(p, ov){
-  ov.addEventListener("pointerdown", e=>onDown(e,p));
+  ov.addEventListener("pointerdown", e=>onDown(e, findPage(p.id)||p));
   ov.addEventListener("dblclick", e=>{
     const ae=e.target.closest("[data-ann]"); if(!ae) return;
+    p = findPage(p.id)||p;
     const a=p.annots.find(x=>x.id==ae.dataset.ann); if(a&&a.type==="text"&&!editing){ select(p,a,true); renderOverlay(p); beginEdit(p,a); }
   });
 }
